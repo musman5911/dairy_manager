@@ -1,0 +1,150 @@
+import { useState, useEffect } from 'react';
+import {
+  LayoutDashboard, Cat, Droplets, Receipt,
+  HeartPulse, BarChart2, Moon, Sun,
+  LogOut, BookOpen, Shield
+} from 'lucide-react';
+import { getToken, getRole, getUsername, clearAuth } from './api';
+import Login from './components/Login';
+import Dashboard from './components/Dashboard';
+import CowsTab from './components/CowsTab';
+import MilkTab from './components/MilkTab';
+import ExpensesTab from './components/ExpensesTab';
+import HealthTab from './components/HealthTab';
+import ReportsTab from './components/ReportsTab';
+import DiaryTab from './components/DiaryTab';
+import AdminPanel from './components/AdminPanel';
+
+type Tab = 'dashboard' | 'cows' | 'milk' | 'expenses' | 'health' | 'diary' | 'reports';
+
+const NAV: { id: Tab; label: string; icon: React.ElementType }[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'cows',      label: 'Cows',      icon: Cat },
+  { id: 'milk',      label: 'Milk',      icon: Droplets },
+  { id: 'expenses',  label: 'Expenses',  icon: Receipt },
+  { id: 'health',    label: 'Health',    icon: HeartPulse },
+  { id: 'diary',     label: 'Diary',     icon: BookOpen },
+  { id: 'reports',   label: 'Reports',   icon: BarChart2 },
+];
+
+export default function App() {
+  const [token, setToken] = useState<string | null>(getToken);
+  const [role, setRole] = useState<string | null>(getRole);
+  const [username, setUsername] = useState<string | null>(getUsername);
+  const [dark, setDark] = useState(() => localStorage.getItem('dm_dark') === 'true');
+  const [tab, setTab] = useState<Tab>('dashboard');
+  const [showAdmin, setShowAdmin] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark);
+    localStorage.setItem('dm_dark', String(dark));
+  }, [dark]);
+
+  function handleLogin(t: string, r: string, u: string) {
+    setToken(t); setRole(r); setUsername(u);
+  }
+
+  function handleLogout() {
+    clearAuth(); setToken(null); setRole(null); setUsername(null);
+  }
+
+  if (!token) return <Login onLogin={handleLogin} />;
+
+  const isAdmin = role === 'admin';
+  const today = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col text-slate-800 dark:text-slate-100 transition-colors duration-200">
+
+      {/* Header */}
+      <header className="sticky top-0 z-40 h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm flex items-center px-4 gap-3">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <a href="https://dairymanager--usman5911.replit.app/" target="_self" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center text-white text-base shrink-0">🐄</div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold leading-tight truncate text-slate-900 dark:text-white">Usman Dairy Farm</p>
+              <p className="hidden sm:block text-[10px] font-mono text-slate-400 uppercase tracking-wider">Farm Management System</p>
+            </div>
+          </a>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="hidden md:flex items-center gap-1.5 text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-lg">
+            📅 {today}
+          </span>
+
+          <button
+            onClick={() => setDark(d => !d)}
+            className="w-8 h-8 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+          >
+            {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+
+          <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-700">
+            {/* Admin: clickable Admin button only */}
+            {isAdmin && (
+              <button
+                onClick={() => setShowAdmin(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors"
+                title="Admin Panel"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span className="text-xs font-semibold">Admin</span>
+              </button>
+            )}
+            {/* Viewer: badge only, not clickable */}
+            {!isAdmin && (
+              <span className="text-[10px] text-slate-400 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded-full capitalize">
+                Viewer
+              </span>
+            )}
+            <button onClick={handleLogout} className="text-slate-400 hover:text-red-500 transition" title="Logout">
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Tab Nav */}
+      <nav className="sticky top-14 z-30 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 flex gap-0.5 overflow-x-auto no-scrollbar">
+          {NAV.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`flex items-center gap-1.5 px-3 sm:px-4 py-3 text-xs font-semibold whitespace-nowrap shrink-0 border-b-2 -mb-px transition-colors cursor-pointer ${
+                tab === id
+                  ? 'border-teal-600 text-teal-700 dark:text-teal-400 dark:border-teal-400'
+                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      {/* Content */}
+      <div className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5">
+        <main className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-6 min-h-[60vh]">
+          {tab === 'dashboard'  && <Dashboard isAdmin={isAdmin} onNavigate={setTab as (t: string) => void} />}
+          {tab === 'cows'       && <CowsTab isAdmin={isAdmin} />}
+          {tab === 'milk'       && <MilkTab isAdmin={isAdmin} />}
+          {tab === 'expenses'   && <ExpensesTab isAdmin={isAdmin} />}
+          {tab === 'health'     && <HealthTab isAdmin={isAdmin} />}
+          {tab === 'diary'      && <DiaryTab />}
+          {tab === 'reports'    && <ReportsTab />}
+        </main>
+      </div>
+
+      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-3 px-6 text-[11px] font-mono text-slate-400 flex justify-between items-center">
+        <span>Usman Dairy Farm © {new Date().getFullYear()}</span>
+        <span className="capitalize">{role} mode</span>
+      </footer>
+
+      {/* Admin Panel Popup */}
+      {showAdmin && <AdminPanel username={username} onClose={() => setShowAdmin(false)} />}
+    </div>
+  );
+}
