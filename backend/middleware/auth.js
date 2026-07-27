@@ -11,6 +11,7 @@ const protect = (req, res, next) => {
   if (!token) return res.status(401).json({ error: 'Not authorized' });
   try {
     req.user = jwt.verify(token, SECRET);
+    if (!['admin', 'worker'].includes(req.user?.role)) req.user.role = 'worker';
     next();
   } catch {
     res.status(401).json({ error: 'Token invalid' });
@@ -22,4 +23,9 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
-module.exports = { protect, adminOnly };
+const workerOrAdmin = (req, res, next) => {
+  if (!['admin', 'worker'].includes(req.user?.role)) return res.status(403).json({ error: 'Worker or admin only' });
+  next();
+};
+
+module.exports = { protect, adminOnly, workerOrAdmin };

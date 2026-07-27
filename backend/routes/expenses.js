@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { Expense } = require('../db');
-const { protect, adminOnly } = require('../middleware/auth');
+const { protect, adminOnly, workerOrAdmin } = require('../middleware/auth');
 
 router.get('/', protect, async (req, res) => {
   try {
@@ -16,7 +16,7 @@ router.get('/', protect, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/', protect, adminOnly, async (req, res) => {
+router.post('/', protect, workerOrAdmin, async (req, res) => {
   try {
     const id = req.body.id || 'e' + Date.now();
     const exp = await Expense.create({ ...req.body, _id: id });
@@ -24,7 +24,7 @@ router.post('/', protect, adminOnly, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.put('/:id', protect, adminOnly, async (req, res) => {
+router.put('/:id', protect, workerOrAdmin, async (req, res) => {
   try {
     const update = { ...req.body };
     // Explicitly handle clearing cowId (farm-wide)

@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { Health, Expense } = require('../db');
-const { protect, adminOnly } = require('../middleware/auth');
+const { protect, adminOnly, workerOrAdmin } = require('../middleware/auth');
 
 router.get('/', protect, async (req, res) => {
   try {
@@ -24,7 +24,7 @@ router.get('/upcoming', protect, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/', protect, adminOnly, async (req, res) => {
+router.post('/', protect, workerOrAdmin, async (req, res) => {
   try {
     const id = 'h' + Date.now();
     const record = await Health.create({ ...req.body, _id: id });
@@ -48,7 +48,7 @@ router.post('/', protect, adminOnly, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.put('/:id', protect, adminOnly, async (req, res) => {
+router.put('/:id', protect, workerOrAdmin, async (req, res) => {
   try {
     const record = await Health.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!record) return res.status(404).json({ error: 'Not found' });

@@ -15,6 +15,7 @@ import {
 
 interface ExpensesTabProps {
   isAdmin: boolean;
+  canDelete?: boolean;
 }
 
 const typeStyles: Record<ExpenseType, string> = {
@@ -26,7 +27,7 @@ const typeStyles: Record<ExpenseType, string> = {
   misc: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400',
 };
 
-const ExpensesTab: React.FC<ExpensesTabProps> = ({ isAdmin }) => {
+const ExpensesTab: React.FC<ExpensesTabProps> = ({ isAdmin, canDelete = isAdmin }) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [cows, setCows] = useState<Cow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -372,12 +373,14 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ isAdmin }) => {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button 
-                          onClick={() => handleDelete(expense._id)}
-                          className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canDelete && (
+                          <button 
+                            onClick={() => handleDelete(expense._id)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   )}

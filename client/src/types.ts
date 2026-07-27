@@ -107,7 +107,20 @@ export interface Sale {
   previousStatus?: string;
 }
 
-export type UserRole = 'admin' | 'viewer';
+export type UserRole = 'admin' | 'worker';
+
+export interface AuthUser {
+  _id: string;
+  username: string;
+  role: UserRole;
+  displayName?: string;
+  email?: string;
+  active: boolean;
+  farmName?: string;
+  lastLoginAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
 
 export interface AuthState {
   token: string;

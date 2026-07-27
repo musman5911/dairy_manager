@@ -14,7 +14,7 @@ router.get('/:date', protect, async (req, res) => {
 });
 
 // PUT /api/dailylog/:date -> upsert (create if missing, update if exists)
-// Both admin and viewer can save — this is day-to-day operational input, not financial/record data.
+// Both admin and worker can save — this is day-to-day operational input.
 router.put('/:date', protect, async (req, res) => {
   try {
     const { checklist, notes } = req.body;

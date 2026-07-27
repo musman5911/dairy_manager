@@ -8,9 +8,9 @@ import {
   ChevronLeft, ChevronRight, Calendar, Baby
 } from 'lucide-react';
 
-interface MilkTabProps { isAdmin: boolean; }
+interface MilkTabProps { isAdmin: boolean; canDelete?: boolean; }
 
-export default function MilkTab({ isAdmin }: MilkTabProps) {
+export default function MilkTab({ isAdmin, canDelete = isAdmin }: MilkTabProps) {
   const [viewMode, setViewMode] = useState<'daily' | 'history'>('daily');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
   const [cows, setCows] = useState<Cow[]>([]);
@@ -291,14 +291,14 @@ export default function MilkTab({ isAdmin }: MilkTabProps) {
                     <th className="px-5 py-3">Evening</th>
                     <th className="px-5 py-3">Calf</th>
                     <th className="px-5 py-3">Total</th>
-                    <th className="px-5 py-3 text-right">Actions</th>
+                    {canDelete && <th className="px-5 py-3 text-right">Actions</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {loading ? (
-                    <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400">Loading...</td></tr>
+                    <tr><td colSpan={canDelete ? 7 : 6} className="px-5 py-12 text-center text-slate-400">Loading...</td></tr>
                   ) : historyByCow.length === 0 ? (
-                    <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400">No records for {monthLabel(historyMonth)}</td></tr>
+                    <tr><td colSpan={canDelete ? 7 : 6} className="px-5 py-12 text-center text-slate-400">No records for {monthLabel(historyMonth)}</td></tr>
                   ) : historyByCow.map(record => (
                     <tr key={record._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 text-sm">
                       <td className="px-5 py-3 text-slate-500">{new Date(record.date).toLocaleDateString()}</td>
@@ -307,13 +307,13 @@ export default function MilkTab({ isAdmin }: MilkTabProps) {
                       <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{fmt(record.evening)} L</td>
                       <td className="px-5 py-3 text-pink-500">{record.calfMilk ? `${fmt(record.calfMilk)} L` : '-'}</td>
                       <td className="px-5 py-3 font-semibold text-teal-600">{fmt(record.morning + record.evening)} L</td>
-                      <td className="px-5 py-3 text-right">
-                        {isAdmin && (
+                      {canDelete && (
+                        <td className="px-5 py-3 text-right">
                           <button onClick={() => handleDelete(record._id)} className="p-1.5 text-slate-400 hover:text-red-500">
                             <Trash2 className="h-4 w-4" />
                           </button>
-                        )}
-                      </td>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

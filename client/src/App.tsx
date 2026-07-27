@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Cat, Droplets, Receipt,
   HeartPulse, BarChart2, Moon, Sun,
-  LogOut, BookOpen, Shield
+  LogOut, BookOpen, Settings
 } from 'lucide-react';
 import { getToken, getRole, getUsername, clearAuth } from './api';
 import Login from './components/Login';
@@ -51,13 +51,14 @@ export default function App() {
   if (!token) return <Login onLogin={handleLogin} />;
 
   const isAdmin = role === 'admin';
+  const canLogDaily = isAdmin || role === 'worker';
   const today = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col text-slate-800 dark:text-slate-100 transition-colors duration-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col text-slate-800 dark:text-slate-100 transition-colors duration-200 overflow-x-hidden">
 
       {/* Header */}
-      <header className="sticky top-0 z-40 h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm flex items-center px-4 gap-3">
+      <header className="sticky top-0 z-40 h-14 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 shadow-sm flex items-center px-4 gap-3 animate-slide-down">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <a href="https://dairymanager--usman5911.replit.app/" target="_self" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center text-white text-base shrink-0">🐄</div>
@@ -85,17 +86,17 @@ export default function App() {
             {isAdmin && (
               <button
                 onClick={() => setShowAdmin(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors"
-                title="Admin Panel"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition shadow-sm shadow-teal-500/20"
+                title="Settings"
               >
-                <Shield className="w-3.5 h-3.5" />
-                <span className="text-xs font-semibold">Admin</span>
+                <Settings className="w-3.5 h-3.5" />
+                <span className="text-xs font-semibold">Settings</span>
               </button>
             )}
-            {/* Viewer: badge only, not clickable */}
+            {/* Worker: badge only, not clickable */}
             {!isAdmin && (
               <span className="text-[10px] text-slate-400 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded-full capitalize">
-                Viewer
+                Worker
               </span>
             )}
             <button onClick={handleLogout} className="text-slate-400 hover:text-red-500 transition" title="Logout">
@@ -106,7 +107,7 @@ export default function App() {
       </header>
 
       {/* Tab Nav */}
-      <nav className="sticky top-14 z-30 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
+      <nav className="sticky top-14 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 shadow-sm animate-slide-down-delayed">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 flex gap-0.5 overflow-x-auto no-scrollbar">
           {NAV.map(({ id, label, icon: Icon }) => (
             <button
@@ -127,18 +128,18 @@ export default function App() {
 
       {/* Content */}
       <div className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5">
-        <main className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-6 min-h-[60vh]">
+        <main key={tab} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-6 min-h-[60vh] animate-tab-in">
           {tab === 'dashboard'  && <Dashboard isAdmin={isAdmin} onNavigate={setTab as (t: string) => void} />}
           {tab === 'cows'       && <CowsTab isAdmin={isAdmin} />}
-          {tab === 'milk'       && <MilkTab isAdmin={isAdmin} />}
-          {tab === 'expenses'   && <ExpensesTab isAdmin={isAdmin} />}
-          {tab === 'health'     && <HealthTab isAdmin={isAdmin} />}
+          {tab === 'milk'       && <MilkTab isAdmin={canLogDaily} canDelete={isAdmin} />}
+          {tab === 'expenses'   && <ExpensesTab isAdmin={canLogDaily} canDelete={isAdmin} />}
+          {tab === 'health'     && <HealthTab isAdmin={canLogDaily} canDelete={isAdmin} />}
           {tab === 'diary'      && <DiaryTab />}
           {tab === 'reports'    && <ReportsTab />}
         </main>
       </div>
 
-      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-3 px-6 text-[11px] font-mono text-slate-400 flex justify-between items-center">
+      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-3 px-6 text-[11px] font-mono text-slate-400 flex justify-between items-center animate-fade-in">
         <span>Usman Dairy Farm © {new Date().getFullYear()}</span>
         <span className="capitalize">{role} mode</span>
       </footer>

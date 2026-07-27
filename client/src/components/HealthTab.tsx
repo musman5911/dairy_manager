@@ -17,6 +17,7 @@ import {
 
 interface HealthTabProps {
   isAdmin: boolean;
+  canDelete?: boolean;
 }
 
 const typeStyles: Record<HealthType, string> = {
@@ -27,7 +28,7 @@ const typeStyles: Record<HealthType, string> = {
   other: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400',
 };
 
-const HealthTab: React.FC<HealthTabProps> = ({ isAdmin }) => {
+const HealthTab: React.FC<HealthTabProps> = ({ isAdmin, canDelete = isAdmin }) => {
   const [records, setRecords] = useState<HealthRecord[]>([]);
   const [upcoming, setUpcoming] = useState<HealthRecord[]>([]);
   const [cows, setCows] = useState<Cow[]>([]);
@@ -454,12 +455,14 @@ const HealthTab: React.FC<HealthTabProps> = ({ isAdmin }) => {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button 
-                          onClick={() => handleDelete(record._id)}
-                          className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canDelete && (
+                          <button 
+                            onClick={() => handleDelete(record._id)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   )}

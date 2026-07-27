@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 
 const connectDB = async () => {
   try {
@@ -93,11 +94,46 @@ const BuyerSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const UserSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
+  username: { type: String, required: true, unique: true, trim: true, lowercase: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ['admin', 'viewer'], default: 'viewer' },
+  role: { type: String, enum: ['admin', 'worker'], default: 'worker' },
+  displayName: { type: String, default: '' },
+  email: { type: String, default: '', trim: true, lowercase: true },
+  active: { type: Boolean, default: true },
+  lastLoginAt: Date,
   farmName: { type: String, default: 'Usman Dairy Farm' }
 }, { timestamps: true });
+
+const PasswordResetSchema = new mongoose.Schema({
+  purpose: { type: String, enum: ['reset_password'], required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  codeHash: { type: String, required: true },
+  expiresAt: { type: Date, required: true, index: { expires: 0 } },
+  usedAt: { type: Date, default: null },
+}, { timestamps: true });
+
+PasswordResetSchema.statics.generateCode = function () {
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+  return { code, codeHash };
+};
+
+PasswordResetSchema.methods.matchesCode = function (candidate) {
+  if (!candidate) return false;
+  const hash = crypto.createHash('sha256').update(String(candidate)).digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(this.codeHash, 'hex'));
+};
+
+PasswordResetSchema.statics.createCode = async function ({ userId }) {
+  const { code, codeHash } = this.generateCode();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  await this.updateMany(
+    { purpose: 'reset_password', userId, usedAt: null, expiresAt: { $gt: new Date() } },
+    { $set: { usedAt: new Date() } }
+  );
+  await this.create({ purpose: 'reset_password', userId, codeHash, expiresAt });
+  return code;
+};
 
 const RateHistorySchema = new mongoose.Schema({
   _id: String,
@@ -137,8 +173,9 @@ const Rate = mongoose.model('Rate', RateSchema);
 const Health = mongoose.model('Health', HealthSchema);
 const Buyer = mongoose.model('Buyer', BuyerSchema);
 const User = mongoose.model('User', UserSchema);
+const PasswordReset = mongoose.model('PasswordReset', PasswordResetSchema);
 const RateHistory = mongoose.model('RateHistory', RateHistorySchema);
 const DailyLog = mongoose.model('DailyLog', DailyLogSchema);
 const Sale = mongoose.model('Sale', SaleSchema);
 
-module.exports = { connectDB, Cow, Milk, Expense, Rate, Health, Buyer, User, RateHistory, DailyLog, Sale };
+module.exports = { connectDB, Cow, Milk, Expense, Rate, Health, Buyer, User, PasswordReset, RateHistory, DailyLog, Sale };

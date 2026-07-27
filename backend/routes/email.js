@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { protect, adminOnly } = require('../middleware/auth');
-const { sendMail } = require('../utils/mailer');
+const { sendMail, mailConfigured } = require('../utils/mailer');
 const { buildSummaryData, renderSummaryHtml } = require('../services/dailySummary');
 
 function todayStr() {
@@ -27,9 +27,9 @@ async function sendTodaysSummary() {
 
 // GET /api/email/status — lets the frontend show whether email is configured, without exposing secrets
 router.get('/status', protect, async (req, res) => {
-  const { EMAIL_USER, EMAIL_PASS, EMAIL_TO } = process.env;
+  const { EMAIL_TO } = process.env;
   res.json({
-    configured: Boolean(EMAIL_USER && EMAIL_PASS && EMAIL_TO),
+    configured: Boolean(mailConfigured() && EMAIL_TO),
     to: EMAIL_TO ? EMAIL_TO.replace(/(.{2}).+(@.+)/, '$1***$2') : null,
   });
 });

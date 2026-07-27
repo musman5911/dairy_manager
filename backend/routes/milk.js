@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { Milk } = require('../db');
-const { protect, adminOnly } = require('../middleware/auth');
+const { protect, adminOnly, workerOrAdmin } = require('../middleware/auth');
 
 router.get('/', protect, async (req, res) => {
   try {
@@ -23,7 +23,7 @@ router.get('/', protect, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/', protect, adminOnly, async (req, res) => {
+router.post('/', protect, workerOrAdmin, async (req, res) => {
   try {
     // Duplicate detection
     const existing = await Milk.findOne({ cowId: req.body.cowId, date: req.body.date });
@@ -44,7 +44,7 @@ router.post('/', protect, adminOnly, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.put('/:id', protect, adminOnly, async (req, res) => {
+router.put('/:id', protect, workerOrAdmin, async (req, res) => {
   try {
     const entry = await Milk.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!entry) return res.status(404).json({ error: 'Not found' });
