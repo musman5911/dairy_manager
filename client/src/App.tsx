@@ -55,13 +55,18 @@ export default function App() {
   const today = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col text-slate-800 dark:text-slate-100 transition-colors duration-200 overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col text-slate-800 dark:text-slate-100 transition-colors duration-200 overflow-x-hidden relative">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute -top-28 left-1/4 w-72 h-72 rounded-full bg-teal-300/20 dark:bg-teal-600/10 blur-3xl animate-float-slow" />
+        <div className="absolute top-1/3 -right-24 w-80 h-80 rounded-full bg-emerald-300/20 dark:bg-emerald-600/10 blur-3xl animate-float-slower" />
+        <div className="absolute bottom-16 left-8 text-7xl opacity-[0.06] dark:opacity-[0.08] animate-float-slow">🐄</div>
+      </div>
 
       {/* Header */}
       <header className="sticky top-0 z-40 h-14 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 shadow-sm flex items-center px-4 gap-3 animate-slide-down">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <a href="https://dairymanager--usman5911.replit.app/" target="_self" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center text-white text-base shrink-0">🐄</div>
+            <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center text-white text-base shrink-0 animate-pulse-glow">🐄</div>
             <div className="min-w-0">
               <p className="text-sm font-bold leading-tight truncate text-slate-900 dark:text-white">Usman Dairy Farm</p>
               <p className="hidden sm:block text-[10px] font-mono text-slate-400 uppercase tracking-wider">Farm Management System</p>
@@ -127,7 +132,7 @@ export default function App() {
       </nav>
 
       {/* Content */}
-      <div className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5">
+      <div className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 relative z-10">
         <main key={tab} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-6 min-h-[60vh] animate-tab-in">
           {tab === 'dashboard'  && <Dashboard isAdmin={isAdmin} onNavigate={setTab as (t: string) => void} />}
           {tab === 'cows'       && <CowsTab isAdmin={isAdmin} />}
@@ -139,7 +144,7 @@ export default function App() {
         </main>
       </div>
 
-      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-3 px-6 text-[11px] font-mono text-slate-400 flex justify-between items-center animate-fade-in">
+      <footer className="bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 py-3 px-6 text-[11px] font-mono text-slate-400 flex justify-between items-center animate-fade-in relative z-10">
         <span>Usman Dairy Farm © {new Date().getFullYear()}</span>
         <span className="capitalize">{role} mode</span>
       </footer>

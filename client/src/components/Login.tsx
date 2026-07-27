@@ -140,7 +140,7 @@ export default function Login({ onLogin }: { onLogin: (t: string, r: string, u: 
 
       <header className="fixed top-0 left-0 right-0 h-14 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-800 shadow-sm flex items-center px-4 z-10 animate-slide-down">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-green-700 rounded-lg flex items-center justify-center text-white text-sm shadow-inner">🐄</div>
+          <div className="w-8 h-8 bg-green-700 rounded-lg flex items-center justify-center text-white text-sm shadow-inner animate-pulse-glow">🐄</div>
           <div>
             <h1 className="text-sm font-bold leading-tight">Usman Dairy Farm</h1>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight uppercase tracking-wider font-medium">Management System</p>
@@ -170,7 +170,7 @@ export default function Login({ onLogin }: { onLogin: (t: string, r: string, u: 
             {info && <Message type="success" text={info} />}
 
             {view === 'login' && (
-              <form className="space-y-4" onSubmit={handleSubmit}>
+              <form className="space-y-4 animate-slide-up" onSubmit={handleSubmit}>
                 <Field label={isFirstSetup ? 'Username' : 'Username or email'}>
                   <IconInput icon={<User className="h-4 w-4" />}>
                     <input
@@ -200,12 +200,15 @@ export default function Login({ onLogin }: { onLogin: (t: string, r: string, u: 
                   </Field>
                 )}
 
-                <Field label="Password" right={!isFirstSetup && mailConfigured ? (
-                  <button type="button" onClick={() => goTo('forgotEmail')} className="text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 font-semibold inline-flex items-center gap-1">
-                    <KeyRound className="w-3.5 h-3.5" /> Forgot?
+                <Field label="Password" right={!isFirstSetup ? (
+                  <button
+                    type="button"
+                    onClick={() => goTo('forgotEmail')}
+                    title={mailConfigured ? 'Reset password by email' : 'SMTP is not configured yet'}
+                    className="text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 font-semibold inline-flex items-center gap-1 animate-soft-pulse"
+                  >
+                    <KeyRound className="w-3.5 h-3.5" /> Forgot password?
                   </button>
-                ) : !isFirstSetup ? (
-                  <span className="text-xs text-slate-400">Contact admin</span>
                 ) : null}>
                   <IconInput icon={<Lock className="h-4 w-4" />}>
                     <input
@@ -238,8 +241,13 @@ export default function Login({ onLogin }: { onLogin: (t: string, r: string, u: 
             )}
 
             {view === 'forgotEmail' && (
-              <form className="space-y-4" onSubmit={handleForgotRequest}>
+              <form className="space-y-4 animate-slide-up" onSubmit={handleForgotRequest}>
                 <BackButton onClick={() => goTo('login')} />
+                {!mailConfigured && (
+                  <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-xs p-3">
+                    SMTP email is not configured yet. Add SMTP settings in backend/.env to send reset codes.
+                  </div>
+                )}
                 <Field label="Admin email">
                   <IconInput icon={<Mail className="h-4 w-4" />}>
                     <input
@@ -260,7 +268,7 @@ export default function Login({ onLogin }: { onLogin: (t: string, r: string, u: 
             )}
 
             {view === 'forgotCode' && (
-              <form className="space-y-4" onSubmit={handleResetPassword}>
+              <form className="space-y-4 animate-slide-up" onSubmit={handleResetPassword}>
                 <BackButton onClick={() => goTo('forgotEmail')} />
                 <Field label="6-digit code">
                   <input
