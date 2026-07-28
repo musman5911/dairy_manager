@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import type { Cow, HealthRecord, HealthType } from '../types';
+import { todayStr } from '../utils/date';
 import { 
   Plus, 
   Filter, 
@@ -17,6 +18,7 @@ import {
 
 interface HealthTabProps {
   isAdmin: boolean;
+  canDelete?: boolean;
 }
 
 const typeStyles: Record<HealthType, string> = {
@@ -27,7 +29,7 @@ const typeStyles: Record<HealthType, string> = {
   other: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400',
 };
 
-const HealthTab: React.FC<HealthTabProps> = ({ isAdmin }) => {
+const HealthTab: React.FC<HealthTabProps> = ({ isAdmin, canDelete = isAdmin }) => {
   const [records, setRecords] = useState<HealthRecord[]>([]);
   const [upcoming, setUpcoming] = useState<HealthRecord[]>([]);
   const [cows, setCows] = useState<Cow[]>([]);
@@ -42,7 +44,7 @@ const HealthTab: React.FC<HealthTabProps> = ({ isAdmin }) => {
   // Form
   const [formData, setFormData] = useState({
     cowId: '',
-    date: new Date().toISOString().split('T')[0],
+    date: todayStr(),
     type: 'checkup' as HealthType,
     description: '',
     medicine: '',
@@ -94,7 +96,7 @@ const HealthTab: React.FC<HealthTabProps> = ({ isAdmin }) => {
 
       setFormData({
         cowId: '',
-        date: new Date().toISOString().split('T')[0],
+        date: todayStr(),
         type: 'checkup',
         description: '',
         medicine: '',
@@ -322,7 +324,7 @@ const HealthTab: React.FC<HealthTabProps> = ({ isAdmin }) => {
                       setShowForm(false);
                       setFormData({
                         cowId: '',
-                        date: new Date().toISOString().split('T')[0],
+                        date: todayStr(),
                         type: 'checkup',
                         description: '',
                         medicine: '',
@@ -454,12 +456,14 @@ const HealthTab: React.FC<HealthTabProps> = ({ isAdmin }) => {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button 
-                          onClick={() => handleDelete(record._id)}
-                          className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canDelete && (
+                          <button 
+                            onClick={() => handleDelete(record._id)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   )}

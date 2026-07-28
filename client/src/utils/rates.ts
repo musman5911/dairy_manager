@@ -45,8 +45,12 @@ export function getRateForDate(
  * @param currentDate - date current rate was set
  * @returns total revenue
  */
+export function saleableMilkLiters(m: { morning?: number; evening?: number; calfMilk?: number }): number {
+  return Math.max(0, (m.morning || 0) + (m.evening || 0) - (m.calfMilk || 0));
+}
+
 export function calcRevenueWithHistory(
-  milkEntries: { date: string; morning: number; evening: number }[],
+  milkEntries: { date: string; morning: number; evening: number; calfMilk?: number }[],
   history: RateHistory[],
   currentRate: number,
   currentDate: string,
@@ -54,7 +58,7 @@ export function calcRevenueWithHistory(
   let total = 0;
   for (const m of milkEntries) {
     const rate = getRateForDate(m.date, history, currentRate, currentDate);
-    total += ((m.morning || 0) + (m.evening || 0)) * rate;
+    total += saleableMilkLiters(m) * rate;
   }
   return Math.round(total * 100) / 100;
 }

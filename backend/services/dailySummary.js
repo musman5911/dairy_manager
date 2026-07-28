@@ -11,7 +11,7 @@ async function buildSummaryData(dateStr) {
     DailyLog.findById(dateStr),
   ]);
 
-  const totalMilk = milkToday.reduce((a, m) => a + (m.morning || 0) + (m.evening || 0), 0);
+  const totalMilk = milkToday.reduce((a, m) => a + Math.max(0, (m.morning || 0) + (m.evening || 0) - (m.calfMilk || 0)), 0);
   const currentRate = rate?.value || 0;
   const milkRevenue = totalMilk * currentRate;
   const totalExpenses = expensesToday.reduce((a, e) => a + (e.amount || 0), 0);

@@ -1,12 +1,19 @@
+import type { AuthUser, UserRole } from './types';
+
 const BASE = '/api';
 
+function normalizeRole(role: string | null): UserRole | null {
+  if (!role) return null;
+  return role === 'admin' ? 'admin' : 'worker';
+}
+
 export function getToken(): string | null { return localStorage.getItem('dm_token'); }
-export function getRole(): string | null { return localStorage.getItem('dm_role'); }
+export function getRole(): UserRole | null { return normalizeRole(localStorage.getItem('dm_role')); }
 export function getUsername(): string | null { return localStorage.getItem('dm_username'); }
 
 export function saveAuth(token: string, role: string, username: string): void {
   localStorage.setItem('dm_token', token);
-  localStorage.setItem('dm_role', role);
+  localStorage.setItem('dm_role', normalizeRole(role) || 'worker');
   localStorage.setItem('dm_username', username);
 }
 
@@ -54,12 +61,29 @@ function qs(params?: Record<string, string | undefined>): string {
 export const api = {
   // Auth
   checkSetup: () => req('/auth/check'),
-  setup: (username: string, password: string) =>
-    req('/auth/setup', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  setup: (username: string, password: string, email?: string) =>
+    req('/auth/setup', { method: 'POST', body: JSON.stringify({ username, password, email }) }),
   login: (username: string, password: string) =>
     req('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
-  addViewer: (username: string, password: string) =>
-    req('/auth/add-viewer', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  getMe: (): Promise<{ user: AuthUser }> => req('/auth/me'),
+  updateMe: (data: Partial<Pick<AuthUser, 'displayName' | 'email'>>): Promise<{ user: AuthUser }> =>
+    req('/auth/me', { method: 'PATCH', body: JSON.stringify(data) }),
+  listUsers: (): Promise<AuthUser[]> => req('/auth/users').then((res) => res.users),
+  createUser: (data: { username: string; password: string; role: UserRole; displayName?: string; email?: string }): Promise<{ user: AuthUser }> =>
+    req('/auth/users', { method: 'POST', body: JSON.stringify(data) }),
+  updateUser: (id: string, data: Partial<AuthUser> & { password?: string }): Promise<{ user: AuthUser }> =>
+    req(`/auth/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteUser: (id: string): Promise<{ ok: boolean }> =>
+    req(`/auth/users/${id}`, { method: 'DELETE' }),
+  changePassword: (currentPassword: string, newPassword: string): Promise<{ ok: boolean }> =>
+    req('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
+  getMailStatus: (): Promise<{ configured: boolean }> => req('/auth/mail-status'),
+  forgotPassword: (email: string): Promise<{ ok: boolean }> =>
+    req('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  resetPassword: (email: string, code: string, newPassword: string): Promise<{ ok: boolean }> =>
+    req('/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, code, newPassword }) }),
+  addWorker: (username: string, password: string) =>
+    req('/auth/add-worker', { method: 'POST', body: JSON.stringify({ username, password }) }),
 
   // Cows
   getCows: (p?: { batch?: string; status?: string; motherId?: string }) => req('/cows' + qs(p)),

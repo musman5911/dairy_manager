@@ -1,6 +1,39 @@
+const { randomUUID } = require('crypto');
 const router = require('express').Router();
 const { Health, Expense } = require('../db');
-const { protect, adminOnly } = require('../middleware/auth');
+const { protect, adminOnly, workerOrAdmin } = require('../middleware/auth');
+const {
+  readString,
+  readDate,
+  readNonNegativeNumber,
+  readEnum,
+  sendValidationError,
+} = require('./input');
+
+function healthPayload(body, { requireBasics = false } = {}) {
+  const errors = [];
+  const payload = {};
+
+  const cowId = readString(body, 'cowId', errors, { required: requireBasics, allowEmpty: false });
+  if (cowId !== undefined) payload.cowId = cowId;
+  const date = readDate(body, 'date', errors, { required: requireBasics });
+  if (date !== undefined) payload.date = date;
+  const type = readEnum(body, 'type', ['vaccination', 'treatment', 'checkup', 'deworming', 'other'], errors, { required: requireBasics });
+  if (type !== undefined) payload.type = type;
+  const description = readString(body, 'description', errors, { required: requireBasics, allowEmpty: false });
+  if (description !== undefined) payload.description = description;
+
+  ['medicine', 'vet', 'notes'].forEach((field) => {
+    const value = readString(body, field, errors);
+    if (value !== undefined) payload[field] = value;
+  });
+  const nextDueDate = readDate(body, 'nextDueDate', errors);
+  if (nextDueDate !== undefined) payload.nextDueDate = nextDueDate;
+  const cost = readNonNegativeNumber(body, 'cost', errors);
+  if (cost !== undefined) payload.cost = cost;
+
+  return { payload, errors };
+}
 
 router.get('/', protect, async (req, res) => {
   try {
@@ -24,21 +57,24 @@ router.get('/upcoming', protect, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/', protect, adminOnly, async (req, res) => {
+router.post('/', protect, workerOrAdmin, async (req, res) => {
   try {
-    const id = 'h' + Date.now();
-    const record = await Health.create({ ...req.body, _id: id });
+    const { payload, errors } = healthPayload(req.body, { requireBasics: true });
+    if (errors.length) return sendValidationError(res, errors);
+
+    const id = randomUUID();
+    const record = await Health.create({ ...payload, _id: id });
 
     // Auto-create expense if cost > 0
-    if (req.body.cost && req.body.cost > 0) {
-      const expId = 'e' + Date.now();
-      const expenseNote = `${req.body.type}: ${req.body.description}${req.body.medicine ? ' — ' + req.body.medicine : ''}`;
+    if (payload.cost && payload.cost > 0) {
+      const expId = randomUUID();
+      const expenseNote = `${payload.type}: ${payload.description}${payload.medicine ? ' — ' + payload.medicine : ''}`;
       await Expense.create({
         _id: expId,
-        cowId: req.body.cowId || null,
-        date: req.body.date,
+        cowId: payload.cowId || null,
+        date: payload.date,
         type: 'medicine',
-        amount: req.body.cost,
+        amount: payload.cost,
         note: expenseNote,
         _healthId: id,
       });
@@ -48,31 +84,34 @@ router.post('/', protect, adminOnly, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.put('/:id', protect, adminOnly, async (req, res) => {
+router.put('/:id', protect, workerOrAdmin, async (req, res) => {
   try {
-    const record = await Health.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const { payload, errors } = healthPayload(req.body);
+    if (errors.length) return sendValidationError(res, errors);
+
+    const record = await Health.findByIdAndUpdate(req.params.id, { $set: payload }, { new: true });
     if (!record) return res.status(404).json({ error: 'Not found' });
 
     // Find linked expense
     const existingExp = await Expense.findOne({ _healthId: req.params.id });
 
     // ── Handle cost changes ─────────────────────────────────
-    if (req.body.cost !== undefined) {
-      if (req.body.cost > 0) {
+    if (payload.cost !== undefined) {
+      if (payload.cost > 0) {
         const expenseNote = `${record.type}: ${record.description}${record.medicine ? ' — ' + record.medicine : ''}`;
         if (existingExp) {
-          existingExp.amount = req.body.cost;
+          existingExp.amount = payload.cost;
           existingExp.cowId = record.cowId || null;
           existingExp.date = record.date;
           existingExp.note = expenseNote;
           await existingExp.save();
         } else {
           await Expense.create({
-            _id: 'e' + Date.now(),
+            _id: randomUUID(),
             cowId: record.cowId || null,
             date: record.date,
             type: 'medicine',
-            amount: req.body.cost,
+            amount: payload.cost,
             note: expenseNote,
             _healthId: req.params.id,
           });
@@ -84,13 +123,13 @@ router.put('/:id', protect, adminOnly, async (req, res) => {
     }
 
     // ── Sync cowId/date even when cost wasn't changed ───────
-    if (existingExp && req.body.cost === undefined) {
+    if (existingExp && payload.cost === undefined) {
       let needsSave = false;
-      if (req.body.cowId !== undefined && existingExp.cowId !== (record.cowId || null)) {
+      if (payload.cowId !== undefined && existingExp.cowId !== (record.cowId || null)) {
         existingExp.cowId = record.cowId || null;
         needsSave = true;
       }
-      if (req.body.date !== undefined && existingExp.date !== record.date) {
+      if (payload.date !== undefined && existingExp.date !== record.date) {
         existingExp.date = record.date;
         needsSave = true;
       }

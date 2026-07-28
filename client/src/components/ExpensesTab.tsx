@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import type { Cow, Expense, ExpenseType } from '../types';
+import { todayStr } from '../utils/date';
 import { 
   Plus, 
   Calendar, 
@@ -15,6 +16,7 @@ import {
 
 interface ExpensesTabProps {
   isAdmin: boolean;
+  canDelete?: boolean;
 }
 
 const typeStyles: Record<ExpenseType, string> = {
@@ -26,7 +28,7 @@ const typeStyles: Record<ExpenseType, string> = {
   misc: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400',
 };
 
-const ExpensesTab: React.FC<ExpensesTabProps> = ({ isAdmin }) => {
+const ExpensesTab: React.FC<ExpensesTabProps> = ({ isAdmin, canDelete = isAdmin }) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [cows, setCows] = useState<Cow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,14 +38,14 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ isAdmin }) => {
   // Filters — default to current month
   const now = new Date();
   const defaultFrom = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  const defaultTo = now.toISOString().split('T')[0];
+  const defaultTo = todayStr();
   const [dateFrom, setDateFrom] = useState(defaultFrom);
   const [dateTo, setDateTo] = useState(defaultTo);
   const [typeFilter, setTypeFilter] = useState<string>('');
 
   // Form
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: todayStr(),
     type: 'feed' as ExpenseType,
     amount: '',
     cowId: '',
@@ -88,7 +90,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ isAdmin }) => {
       }
 
       setFormData({
-        date: new Date().toISOString().split('T')[0],
+        date: todayStr(),
         type: 'feed',
         amount: '',
         cowId: '',
@@ -249,7 +251,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ isAdmin }) => {
                       setEditingId(null);
                       setShowForm(false);
                       setFormData({
-                        date: new Date().toISOString().split('T')[0],
+                        date: todayStr(),
                         type: 'feed',
                         amount: '',
                         cowId: '',
@@ -372,12 +374,14 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ isAdmin }) => {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button 
-                          onClick={() => handleDelete(expense._id)}
-                          className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canDelete && (
+                          <button 
+                            onClick={() => handleDelete(expense._id)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   )}

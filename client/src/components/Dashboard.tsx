@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   TrendingUp, TrendingDown, Droplets,
-  DollarSign, Hash, AlertCircle, Heart, X, History, PieChart as PieChartIcon
+  DollarSign, Hash, AlertCircle, Heart, X, History, PieChart as PieChartIcon, CalendarDays
 } from 'lucide-react';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
@@ -10,8 +10,9 @@ import { api } from '../api';
 import { Cow, MilkEntry, Expense, HealthRecord, Rate, RateHistory } from '../types';
 import { fmt, fmtPKR } from '../utils/format';
 import { calcRevenueWithHistory } from '../utils/rates';
-import { todayStr as getTodayStr } from '../utils/date';
+import { todayStr as getTodayStr, shiftDate } from '../utils/date';
 import CowDetailPopup from './CowDetailPopup';
+import ViewportModal from './ViewportModal';
 
 interface DashboardProps {
   isAdmin: boolean;
@@ -37,9 +38,15 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
   const [rateHistory, setRateHistory] = useState<RateHistory[]>([]);
   const [showMilkPopup, setShowMilkPopup] = useState(false);
   const [showRatePopup, setShowRatePopup] = useState(false);
+  const [showPnlPopup, setShowPnlPopup] = useState(false);
   const [showTopPopup, setShowTopPopup] = useState(false);
   const [showAlertsPopup, setShowAlertsPopup] = useState(false);
   const [cowFilter, setCowFilter] = useState<string>('all');
+  const [rangeTo, setRangeTo] = useState(getTodayStr());
+  const [rangeFrom, setRangeFrom] = useState(() => `${getTodayStr().slice(0, 8)}01`);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customFrom, setCustomFrom] = useState(rangeFrom);
+  const [customTo, setCustomTo] = useState(rangeTo);
   const [data, setData] = useState<{
     cows: Cow[];
     milk: MilkEntry[];
@@ -47,28 +54,27 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
     rate: Rate | null;
     healthAlerts: HealthRecord[];
     allHealth: HealthRecord[];
-  }>({ cows: [], milk: [], expenses: [], rate: null, healthAlerts: [], allHealth: [] });
+    todayMilk: MilkEntry[];
+    todayExpenses: Expense[];
+  }>({ cows: [], milk: [], expenses: [], rate: null, healthAlerts: [], allHealth: [], todayMilk: [], todayExpenses: [] });
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const now = new Date();
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(now.getDate() - 30);
-        const from = thirtyDaysAgo.toISOString().split('T')[0];
-        const to = now.toISOString().split('T')[0];
-
-        const [cows, milk, expenses, rate, healthAlerts, rateHist, allHealth] = await Promise.all([
+        const today = getTodayStr();
+        const [cows, milk, expenses, rate, healthAlerts, rateHist, allHealth, todayMilk, todayExpenses] = await Promise.all([
           api.getCows(),
-          api.getMilk({ from, to }),
-          api.getExpenses({ from, to }),
+          api.getMilk({ from: rangeFrom, to: rangeTo }),
+          api.getExpenses({ from: rangeFrom, to: rangeTo }),
           api.getRate(),
           api.getUpcomingHealth(),
           api.getRateHistory(),
           api.getHealth(),
+          api.getMilk({ from: today, to: today }),
+          api.getExpenses({ from: today, to: today }),
         ]);
-        setData({ cows, milk, expenses, rate, healthAlerts, allHealth });
+        setData({ cows, milk, expenses, rate, healthAlerts, allHealth, todayMilk, todayExpenses });
         setRateHistory(rateHist);
       } catch (err) {
         console.error('Failed to fetch dashboard data:', err);
@@ -78,7 +84,7 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
       }
     };
     fetchData();
-  }, []);
+  }, [rangeFrom, rangeTo]);
 
   if (loading) {
     return (
@@ -101,42 +107,59 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
   }
 
   const todayStr = getTodayStr();
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+  const monthStart = `${todayStr.slice(0, 8)}01`;
+  const isCurrentMonthRange = rangeFrom === monthStart && rangeTo === todayStr;
+  const rangeLabel = `${rangeFrom} → ${rangeTo}`;
+  const rangeDays = Math.max(1, Math.round((new Date(`${rangeTo}T00:00:00`).getTime() - new Date(`${rangeFrom}T00:00:00`).getTime()) / 86400000) + 1);
+  const selectThisMonth = () => {
+    setRangeFrom(monthStart);
+    setRangeTo(todayStr);
+    setCustomOpen(false);
+  };
+  const openCustomRange = () => {
+    setCustomFrom(rangeFrom);
+    setCustomTo(rangeTo);
+    setCustomOpen(true);
+  };
+  const applyCustomRange = () => {
+    if (!customFrom || !customTo || customFrom > customTo) return;
+    setRangeFrom(customFrom);
+    setRangeTo(customTo);
+    setCustomOpen(false);
+  };
+  const yesterdayStr = shiftDate(todayStr, -1);
 
-  const todayMilk = Math.round(data.milk.filter(m => m.date === todayStr).reduce((a, c) => a + c.morning + c.evening, 0) * 100) / 100;
-  const yesterdayMilk = Math.round(data.milk.filter(m => m.date === yesterdayStr).reduce((a, c) => a + c.morning + c.evening, 0) * 100) / 100;
-  const milkTrend = Math.round((todayMilk - yesterdayMilk) * 100) / 100;
+  const todayMilk = Math.round(data.todayMilk.reduce((a, c) => a + c.morning + c.evening, 0) * 100) / 100;
+  const rangeMilkEntries = data.milk.filter(m => m.date >= rangeFrom && m.date <= rangeTo);
+  const rangeTotalMilk = Math.round(rangeMilkEntries.reduce((a, c) => a + (c.morning || 0) + (c.evening || 0), 0) * 100) / 100;
+  const rangeRevenue = calcRevenueWithHistory(rangeMilkEntries, rateHistory, data.rate?.value || 0, data.rate?.date || '');
+  const rangeExpenses = data.expenses.filter(e => e.date >= rangeFrom && e.date <= rangeTo).reduce((a, c) => a + c.amount, 0);
+  const profitLoss = rangeRevenue - rangeExpenses;
 
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  const monthlyMilkEntries = data.milk.filter(m => { const d = new Date(m.date); return d.getMonth() === currentMonth && d.getFullYear() === currentYear; });
-  const monthlyRevenue = calcRevenueWithHistory(monthlyMilkEntries, rateHistory, data.rate?.value || 0, data.rate?.date || '');
-  const monthlyExpenses = data.expenses.filter(e => { const d = new Date(e.date); return d.getMonth() === currentMonth && d.getFullYear() === currentYear; }).reduce((a, c) => a + c.amount, 0);
-  const profitLoss = monthlyRevenue - monthlyExpenses;
-
-  // Top 3 producers
+  // Top 3 producers in selected range
   const cowMilkMap: Record<string, number> = {};
-  monthlyMilkEntries.forEach(m => { cowMilkMap[m.cowId] = (cowMilkMap[m.cowId] || 0) + m.morning + m.evening; });
+  rangeMilkEntries.forEach(m => { cowMilkMap[m.cowId] = (cowMilkMap[m.cowId] || 0) + m.morning + m.evening; });
   const topProducers = Object.entries(cowMilkMap)
     .map(([id, milk]) => ({ cow: data.cows.find(c => c._id === id), milk }))
     .filter(p => p.cow)
     .sort((a, b) => b.milk - a.milk)
     .slice(0, 3);
 
-  // Today's milk by cow
-  const todayMilkByCow = data.cows
+  // Milk by cow in selected range
+  const rangeMilkByCow = data.cows
     .map(cow => {
-      const entry = data.milk.find(m => m.cowId === cow._id && m.date === todayStr);
-      return { cow, morning: entry?.morning || 0, evening: entry?.evening || 0, total: entry ? (entry.morning + entry.evening) : 0 };
+      const entries = rangeMilkEntries.filter(m => m.cowId === cow._id);
+      const morning = entries.reduce((a, m) => a + (m.morning || 0), 0);
+      const evening = entries.reduce((a, m) => a + (m.evening || 0), 0);
+      const calfMilk = entries.reduce((a, m) => a + (m.calfMilk || 0), 0);
+      return { cow, morning, evening, calfMilk, total: morning + evening, saleable: Math.max(0, morning + evening - calfMilk) };
     })
     .filter(d => d.total > 0)
     .sort((a, b) => b.total - a.total);
 
   // Today's expense/revenue data
-  const todayExpenses = data.expenses.filter(e => e.date === todayStr);
-  const todayMilkRev = Math.round(data.milk.filter(m => m.date === todayStr).reduce((a, m) => a + (m.morning || 0) + (m.evening || 0), 0) * (data.rate?.value || 0));
+  const todayExpenses = data.todayExpenses;
+  const todayMilkRev = Math.round(calcRevenueWithHistory(data.todayMilk, rateHistory, data.rate?.value || 0, data.rate?.date || ''));
   const todayPurchases = todayExpenses.filter(e => e.type === 'purchasing').reduce((a, e) => a + e.amount, 0);
   const expByType: { name: string; value: number; color: string }[] = [];
   const todayExpByType: Record<string, number> = {};
@@ -152,7 +175,7 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
   const now = new Date();
   const timeStr = now.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true });
   const recentActivity: { time: string; icon: string; text: string; color: string }[] = [];
-  const todayMilkEntries = data.milk.filter(m => m.date === todayStr);
+  const todayMilkEntries = data.todayMilk;
   if (todayMilkEntries.length > 0) {
     const totalL = todayMilkEntries.reduce((a, m) => a + m.morning + m.evening, 0);
     recentActivity.push({ time: `${todayStr} ${timeStr}`, icon: '🥛', text: `Milk logged: ${fmt(totalL)}L for ${todayMilkEntries.length} cows`, color: 'text-teal-600' });
@@ -173,7 +196,7 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
     recentActivity.push({ time: `${todayStr} ${timeStr}`, icon: '⚠️', text: `${data.healthAlerts.length} health alert(s) due/overdue`, color: 'text-amber-600' });
   }
   if (topProducers.length > 0) {
-    recentActivity.push({ time: todayStr, icon: '🏆', text: `Top producer: ${topProducers[0].cow!.name} — ${fmt(topProducers[0].milk)}L this month`, color: 'text-teal-600' });
+    recentActivity.push({ time: rangeLabel, icon: '🏆', text: `Top producer: ${topProducers[0].cow!.name} — ${fmt(topProducers[0].milk)}L in selected range`, color: 'text-teal-600' });
   }
 
   // Cow filter
@@ -198,15 +221,65 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
     return cow.status === cowFilter;
   }).sort((a, b) => {
     // Sort: active first, then by milk today
-    const aMilk = data.milk.find(m => m.cowId === a._id && m.date === todayStr);
-    const bMilk = data.milk.find(m => m.cowId === b._id && m.date === todayStr);
+    const aMilk = data.todayMilk.find(m => m.cowId === a._id && m.date === todayStr);
+    const bMilk = data.todayMilk.find(m => m.cowId === b._id && m.date === todayStr);
     const aTotal = aMilk ? aMilk.morning + aMilk.evening : 0;
     const bTotal = bMilk ? bMilk.morning + bMilk.evening : 0;
     return bTotal - aTotal;
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 tab-panel">
+      <div className="relative z-20 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 p-3 sm:p-4 shadow-sm backdrop-blur">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Date Range</p>
+          <p className="text-xs font-mono text-slate-500 dark:text-slate-400">{rangeLabel}</p>
+        </div>
+        <div className="relative flex items-center gap-2">
+          <button
+            type="button"
+            onClick={selectThisMonth}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+              isCurrentMonthRange
+                ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
+                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+            }`}
+          >
+            This Month
+          </button>
+          <button
+            type="button"
+            onClick={openCustomRange}
+            title="Custom range"
+            className={`p-1.5 rounded-lg border transition ${
+              !isCurrentMonthRange
+                ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+            }`}
+          >
+            <CalendarDays className="w-4 h-4" />
+          </button>
+
+          {customOpen && (
+            <div className="absolute right-0 top-full mt-2 z-50 w-72 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-xl space-y-3">
+              <h4 className="font-bold text-xs text-slate-800 dark:text-slate-100 uppercase tracking-wider">Custom Range</h4>
+              <label className="block space-y-1">
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">From</span>
+                <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 rounded-lg font-mono" />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">To</span>
+                <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 rounded-lg font-mono" />
+              </label>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setCustomOpen(false)} className="px-3 py-1.5 text-xs font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">Cancel</button>
+                <button type="button" onClick={applyCustomRange} className="px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white">Apply</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* ── Health Alerts Banner ──────────────── */}
       {data.healthAlerts.length > 0 && (
         <button onClick={() => setShowAlertsPopup(true)}
@@ -236,11 +309,11 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
             subText={`🐄 ${cowCount} Cows · 🐂 ${bullCount} Bulls`} />
         </button>
         <button onClick={() => setShowMilkPopup(true)} className="text-left">
-          <StatCard label="Today's Milk" value={`${fmt(todayMilk)}L`} icon={Droplets} trend={milkTrend} trendUnit="L" />
+          <StatCard label="Milk" value={`${fmt(rangeTotalMilk)}L`} icon={Droplets} subText={rangeLabel} />
         </button>
-        <button onClick={() => onNavigate('reports')} className="text-left">
-          <StatCard label="This Month P&L" value={fmtPKR(profitLoss)} icon={DollarSign}
-            subText={`Rev: ${fmtPKR(monthlyRevenue)}`} isNegative={profitLoss < 0} isProfit={profitLoss >= 0} />
+        <button onClick={() => setShowPnlPopup(true)} className="text-left">
+          <StatCard label="Range P&L" value={fmtPKR(profitLoss)} icon={DollarSign}
+            subText={`Rev: ${fmtPKR(rangeRevenue)}`} isNegative={profitLoss < 0} isProfit={profitLoss >= 0} />
         </button>
         <button onClick={() => setShowRatePopup(true)} className="text-left">
           <StatCard label="Rate" value={`₨ ${data.rate?.value || 0}`} icon={DollarSign} subText="/ Litre" />
@@ -356,9 +429,9 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
             </thead>
             <tbody className="text-sm">
               {filteredCows.map(cow => {
-                const todayMilkEntry = data.milk.find(m => m.cowId === cow._id && m.date === todayStr);
+                const todayMilkEntry = data.todayMilk.find(m => m.cowId === cow._id && m.date === todayStr);
                 const totalToday = todayMilkEntry ? (todayMilkEntry.morning + todayMilkEntry.evening) : 0;
-                const todayExp = data.expenses.filter(e => e.cowId === cow._id && e.date === todayStr).reduce((a, e) => a + e.amount, 0);
+                const todayExp = data.todayExpenses.filter(e => e.cowId === cow._id && e.date === todayStr).reduce((a, e) => a + e.amount, 0);
                 const todayHealth = data.allHealth.filter(h => h.cowId === cow._id && h.date === todayStr);
                 const isMale = cow.gender === 'male';
                 const statusColor = cow.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400' :
@@ -445,7 +518,7 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
                   <p className="text-sm font-bold text-teal-600">{fmt(p.milk)}L</p>
                 </div>
               ))}
-              {topProducers.length === 0 && <p className="text-xs text-slate-400 text-center py-4">No milk data this month</p>}
+              {topProducers.length === 0 && <p className="text-xs text-slate-400 text-center py-4">No milk data in this range</p>}
             </div>
           </button>
         </div>
@@ -455,7 +528,7 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
       {selectedCowId && <CowDetailPopup cowId={selectedCowId} rate={data.rate?.value || 0} rateHistory={rateHistory} rateDate={data.rate?.date || ''} onClose={() => setSelectedCowId(null)} />}
 
       {showAlertsPopup && (
-        <Popup title={`Health Alerts (${data.healthAlerts.length})`} onClose={() => setShowAlertsPopup(false)}>
+        <Popup title={`Health Alerts (${data.healthAlerts.length})`} rangeLabel={rangeLabel} onClose={() => setShowAlertsPopup(false)}>
           <div className="space-y-3">
             {data.healthAlerts.map(alert => {
               const cow = data.cows.find(c => c._id === alert.cowId);
@@ -476,9 +549,9 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
       )}
 
       {showMilkPopup && (
-        <Popup title="Today's Milk Production" onClose={() => setShowMilkPopup(false)}>
+        <Popup title="Milk Production" rangeLabel={rangeLabel} onClose={() => setShowMilkPopup(false)}>
           <div className="space-y-2">
-            {todayMilkByCow.map(d => (
+            {rangeMilkByCow.map(d => (
               <div key={d.cow._id} className="flex items-center justify-between p-3 bg-stone-50 dark:bg-stone-800/50 rounded-lg">
                 <div className="flex items-center gap-2">
                   <CowImg src={d.cow.image} name={d.cow.name} size="w-7 h-7" />
@@ -486,21 +559,41 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-bold text-teal-600">{fmt(d.total)}L</p>
-                  <p className="text-[10px] text-slate-400">M: {fmt(d.morning)} · E: {fmt(d.evening)}</p>
+                  <p className="text-[10px] text-slate-400">M: {fmt(d.morning)} · E: {fmt(d.evening)} · Sold: {fmt(d.saleable)}</p>
                 </div>
               </div>
             ))}
-            {todayMilkByCow.length === 0 && <p className="text-sm text-slate-400 text-center py-4">No milk recorded today</p>}
+            {rangeMilkByCow.length === 0 && <p className="text-sm text-slate-400 text-center py-4">No milk recorded in this range</p>}
           </div>
           <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between">
             <span className="text-sm font-medium text-slate-500">Total</span>
-            <span className="text-lg font-bold text-teal-600">{fmt(todayMilk)}L</span>
+            <span className="text-lg font-bold text-teal-600">{fmt(rangeTotalMilk)}L</span>
+          </div>
+        </Popup>
+      )}
+
+      {showPnlPopup && (
+        <Popup title="Profit & Loss" rangeLabel={rangeLabel} onClose={() => setShowPnlPopup(false)}>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg">
+              <span className="text-xs text-emerald-700 dark:text-emerald-400">Milk Revenue</span>
+              <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{fmtPKR(rangeRevenue)}</span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/10 rounded-lg">
+              <span className="text-xs text-red-700 dark:text-red-400">Expenses</span>
+              <span className="text-sm font-bold text-red-700 dark:text-red-400">{fmtPKR(rangeExpenses)}</span>
+            </div>
+            <div className={`flex justify-between items-center p-3 rounded-lg ${profitLoss >= 0 ? 'bg-teal-50 dark:bg-teal-900/10' : 'bg-red-50 dark:bg-red-900/10'}`}>
+              <span className={`text-xs font-medium ${profitLoss >= 0 ? 'text-teal-700 dark:text-teal-400' : 'text-red-700 dark:text-red-400'}`}>Net</span>
+              <span className={`text-lg font-bold ${profitLoss >= 0 ? 'text-teal-700 dark:text-teal-400' : 'text-red-700 dark:text-red-400'}`}>{fmtPKR(profitLoss)}</span>
+            </div>
+            <button onClick={() => { setShowPnlPopup(false); onNavigate('reports'); }} className="w-full rounded-xl bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white px-4 py-2 text-sm font-semibold">Open Reports</button>
           </div>
         </Popup>
       )}
 
       {showRatePopup && (
-        <Popup title="Milk Rate History" onClose={() => setShowRatePopup(false)}>
+        <Popup title="Milk Rate History" rangeLabel={rangeLabel} onClose={() => setShowRatePopup(false)}>
           <div className="flex items-center justify-between p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg mb-3">
             <span className="text-xs text-teal-600 font-medium">Current Rate</span>
             <span className="text-lg font-bold text-teal-700 dark:text-teal-400">{fmtPKR(data.rate?.value || 0)}/L</span>
@@ -518,10 +611,10 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
       )}
 
       {showTopPopup && (
-        <Popup title="Top Producers This Month" onClose={() => setShowTopPopup(false)}>
+        <Popup title="Top Producers" rangeLabel={rangeLabel} onClose={() => setShowTopPopup(false)}>
           <div className="space-y-3">
             {topProducers.map((p, i) => {
-              const avg = p.milk / new Date().getDate();
+              const avg = p.milk / rangeDays;
               const second = topProducers[1];
               const lead = i === 0 && second ? p.milk - second.milk : 0;
               return (
@@ -554,41 +647,48 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
 function StatCard({ label, value, icon: Icon, trend, trendUnit = '', subText, isNegative, isProfit }: any) {
   const isPositive = trend && trend > 0;
   return (
-    <div className={`bg-white dark:bg-slate-900 rounded-xl border shadow-sm p-4 flex flex-col justify-between hover:border-teal-300 dark:hover:border-teal-700 transition-all duration-200 cursor-pointer ${
-      isProfit === true ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50/30 dark:bg-emerald-900/5' :
-      isProfit === false ? 'border-red-300 dark:border-red-700 bg-red-50/30 dark:bg-red-900/5' :
-      'border-slate-200 dark:border-slate-800'
+    <div className={`group relative overflow-hidden rounded-2xl border bg-white/90 dark:bg-slate-900/90 p-4 shadow-sm backdrop-blur transition-all duration-200 hover:-translate-y-1 hover:shadow-xl ${
+      isProfit === true ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10' :
+      isProfit === false ? 'border-rose-200 dark:border-rose-800 bg-rose-50/60 dark:bg-rose-900/10' :
+      'border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700'
     }`}>
-      <div className="flex justify-between items-start mb-2">
-        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</span>
-        <Icon className="w-4 h-4 text-slate-400" />
+      <div className="absolute -right-8 -top-8 h-20 w-20 rounded-full bg-emerald-500/10 transition-transform duration-300 group-hover:scale-125" />
+      <div className="relative flex justify-between items-start mb-4">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
+        <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/30 p-2 text-emerald-600 dark:text-emerald-300">
+          <Icon className="w-4 h-4" />
+        </div>
       </div>
-      <div>
-        <div className="flex items-baseline gap-2">
-          <span className={`text-2xl font-bold ${isNegative ? 'text-red-600 dark:text-red-400' : isProfit === true ? 'text-emerald-700 dark:text-emerald-400' : isProfit === false ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>{value}</span>
+      <div className="relative">
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <span className={`font-display text-2xl font-bold ${isNegative ? 'text-red-600 dark:text-red-400' : isProfit === true ? 'text-emerald-700 dark:text-emerald-400' : isProfit === false ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>{value}</span>
           {trend !== undefined && trend !== 0 && (
-            <div className={`flex items-center text-[10px] font-bold ${isPositive ? 'text-emerald-600' : 'text-red-600'}`}>
+            <div className={`flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${isPositive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'}`}>
               {isPositive ? <TrendingUp className="w-3 h-3 mr-0.5" /> : <TrendingDown className="w-3 h-3 mr-0.5" />}
               {Math.abs(trend)}{trendUnit}
             </div>
           )}
         </div>
-        {subText && <p className="text-[10px] text-slate-400 mt-1">{subText}</p>}
+        {subText && <p className="text-[11px] text-slate-400 mt-1">{subText}</p>}
       </div>
     </div>
   );
 }
 
-function Popup({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+function Popup({ title, rangeLabel, children, onClose }: { title: string; rangeLabel?: string; children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 transition-opacity duration-200" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto p-5 transition-transform duration-200" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
+    <ViewportModal
+      onClose={onClose}
+      panelClassName="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto p-5 transition-transform duration-200"
+    >
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div>
           <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">{title}</h3>
-          <button onClick={onClose} className="hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg p-1 transition-colors"><X className="w-5 h-5 text-slate-400" /></button>
+          {rangeLabel && <p className="text-[10px] font-mono text-slate-400 mt-0.5">{rangeLabel}</p>}
         </div>
-        {children}
+        <button onClick={onClose} className="hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg p-1 transition-colors"><X className="w-5 h-5 text-slate-400" /></button>
       </div>
-    </div>
+      {children}
+    </ViewportModal>
   );
 }

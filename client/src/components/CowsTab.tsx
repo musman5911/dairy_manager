@@ -6,6 +6,7 @@ import {
   Plus, Edit2, Trash2, X, Save,
   CheckCircle2, Info, Tag, Activity, Banknote, Baby
 } from 'lucide-react';
+import ViewportModal from './ViewportModal';
 
 interface CowsTabProps {
   isAdmin: boolean;
@@ -366,24 +367,25 @@ export default function CowsTab({ isAdmin }: CowsTabProps) {
 
       {/* ── Sale Modal ────────────────────────── */}
       {saleCow && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setSaleCow(null)}>
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Record Sale — {saleCow.name} {saleCow.gender === 'male' ? '🐂' : '🐄'}</h3>
-              <button onClick={() => setSaleCow(null)}><X className="h-5 w-5 text-slate-400" /></button>
-            </div>
-            <form onSubmit={handleRecordSale} className="space-y-4">
-              <Field label="Sale Date *" children={<input required type="date" className="inp" value={saleForm.date} onChange={e => setSaleForm({ ...saleForm, date: e.target.value })} />} />
-              <Field label="Sale Price (₨) *" children={<input required type="number" min="1" className="inp" value={saleForm.salePrice} onChange={e => setSaleForm({ ...saleForm, salePrice: e.target.value })} />} />
-              <Field label="Buyer" children={<input className="inp" value={saleForm.buyer} onChange={e => setSaleForm({ ...saleForm, buyer: e.target.value })} />} />
-              <Field label="Notes" children={<textarea rows={2} className="inp" value={saleForm.notes} onChange={e => setSaleForm({ ...saleForm, notes: e.target.value })} />} />
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setSaleCow(null)} className="px-4 py-2 text-sm text-slate-600">Cancel</button>
-                <button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-6 py-2 text-sm font-medium flex items-center gap-2"><Banknote className="h-4 w-4" /> Record Sale</button>
-              </div>
-            </form>
+        <ViewportModal
+          onClose={() => setSaleCow(null)}
+          panelClassName="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg p-6 w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Record Sale — {saleCow.name} {saleCow.gender === 'male' ? '🐂' : '🐄'}</h3>
+            <button onClick={() => setSaleCow(null)}><X className="h-5 w-5 text-slate-400" /></button>
           </div>
-        </div>
+          <form onSubmit={handleRecordSale} className="space-y-4">
+            <Field label="Sale Date *" children={<input required type="date" className="inp" value={saleForm.date} onChange={e => setSaleForm({ ...saleForm, date: e.target.value })} />} />
+            <Field label="Sale Price (₨) *" children={<input required type="number" min="1" className="inp" value={saleForm.salePrice} onChange={e => setSaleForm({ ...saleForm, salePrice: e.target.value })} />} />
+            <Field label="Buyer" children={<input className="inp" value={saleForm.buyer} onChange={e => setSaleForm({ ...saleForm, buyer: e.target.value })} />} />
+            <Field label="Notes" children={<textarea rows={2} className="inp" value={saleForm.notes} onChange={e => setSaleForm({ ...saleForm, notes: e.target.value })} />} />
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={() => setSaleCow(null)} className="px-4 py-2 text-sm text-slate-600">Cancel</button>
+              <button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-6 py-2 text-sm font-medium flex items-center gap-2"><Banknote className="h-4 w-4" /> Record Sale</button>
+            </div>
+          </form>
+        </ViewportModal>
       )}
 
       <style>{`.inp{width:100%;border:1px solid #e2e8f0;border-radius:0.5rem;padding:0.5rem 0.75rem;font-size:0.875rem;background:white;outline:none}.inp:focus{border-color:#14b8a6}.dark .inp{background:#0f172a;border-color:#334155;color:#e2e8f0}`}</style>

@@ -1,10 +1,16 @@
+const crypto = require('crypto');
 const router = require('express').Router();
 const { protect, adminOnly } = require('../middleware/auth');
-const { sendMail } = require('../utils/mailer');
+const { sendMail, mailConfigured } = require('../utils/mailer');
 const { buildSummaryData, renderSummaryHtml } = require('../services/dailySummary');
+const { todayStr } = require('../utils/date');
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+function timingSafeSecretEquals(provided, expected) {
+  if (!provided || !expected) return false;
+  const providedBuf = Buffer.from(String(provided));
+  const expectedBuf = Buffer.from(String(expected));
+  if (providedBuf.length !== expectedBuf.length) return false;
+  return crypto.timingSafeEqual(providedBuf, expectedBuf);
 }
 
 async function sendTodaysSummary() {
@@ -27,9 +33,9 @@ async function sendTodaysSummary() {
 
 // GET /api/email/status — lets the frontend show whether email is configured, without exposing secrets
 router.get('/status', protect, async (req, res) => {
-  const { EMAIL_USER, EMAIL_PASS, EMAIL_TO } = process.env;
+  const { EMAIL_TO } = process.env;
   res.json({
-    configured: Boolean(EMAIL_USER && EMAIL_PASS && EMAIL_TO),
+    configured: Boolean(mailConfigured() && EMAIL_TO),
     to: EMAIL_TO ? EMAIL_TO.replace(/(.{2}).+(@.+)/, '$1***$2') : null,
   });
 });
@@ -49,7 +55,7 @@ router.post('/send-now', protect, adminOnly, async (req, res) => {
 router.post('/cron', async (req, res) => {
   try {
     const secret = req.header('X-Cron-Secret');
-    if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
+    if (!timingSafeSecretEquals(secret, process.env.CRON_SECRET)) {
       return res.status(401).json({ error: 'Invalid or missing cron secret' });
     }
     const date = await sendTodaysSummary();

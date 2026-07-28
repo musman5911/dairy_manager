@@ -1,19 +1,38 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const { connectDB } = require('./db');
 
 const app = express();
 
+app.use(helmet());
+
 // CORS — restrict to frontend URL in production, allow all in dev
 const allowedOrigin = process.env.FRONTEND_URL || '*';
+if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL) {
+  console.warn('⚠️ FRONTEND_URL is not set in production; CORS will allow all origins.');
+}
 app.use(cors({
   origin: allowedOrigin,
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
 }));
 app.use(express.json({ limit: '10mb' }));
+app.use(mongoSanitize());
+
+// Broad API rate limiter: authenticated data routes still need a safety net in case a token leaks or a script loops.
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  message: { error: 'Too many API requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', apiLimiter);
 
 // API Routes
 app.use('/api/auth',     require('./routes/auth'));
@@ -40,7 +59,7 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 connectDB().then(() => {
   app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
 });

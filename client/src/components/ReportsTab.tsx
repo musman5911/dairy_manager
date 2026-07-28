@@ -13,10 +13,12 @@ import {
   Tooltip,
 } from 'recharts';
 import { api } from '../api';
-import type { Cow, MilkEntry, Expense, Rate, Sale, RateHistory } from '../types';
+import type { Cow, MilkEntry, Expense, ExpenseType, Rate, Sale, RateHistory } from '../types';
 import { fmt, fmtPKR, fmtL, monthKey, monthLabel, lastNMonths } from '../utils/format';
 import { calcRevenueWithHistory } from '../utils/rates';
+import { todayStr, shiftDate } from '../utils/date';
 import { generateMilkReport, generateExpenseReport, generateSummaryReport, generateCowReport } from '../reportExport';
+import ViewportModal from './ViewportModal';
 
 function exportRangeLabel(days: number): string {
   const labels: Record<number, string> = { 1: 'Last 1 Day', 7: 'Last 7 Days', 30: 'Last 1 Month', 180: 'Last 6 Months', 365: 'Last 1 Year' };
@@ -32,6 +34,25 @@ const EXPENSE_COLORS: Record<string, string> = {
   misc: '#64748b',
 };
 
+const DIRECT_EXPENSE_TYPES: ExpenseType[] = ['feed', 'medicine', 'labor', 'equipment', 'misc'];
+type AnimalCategory = 'cow' | 'bull' | 'calf';
+type CostAnimal = Cow & {
+  category: AnimalCategory;
+  milkL: number;
+  revenue: number;
+  expenses: number;
+  feed: number;
+  purchaseInMonth: number;
+  saleIncome: number;
+  net: number;
+};
+
+function animalCategory(cow: Cow): AnimalCategory {
+  if (cow.isCalf || cow.status === 'calf') return 'calf';
+  if (cow.gender === 'male') return 'bull';
+  return 'cow';
+}
+
 export default function ReportsTab() {
   const [cows, setCows] = useState<Cow[]>([]);
   const [milkEntries, setMilkEntries] = useState<MilkEntry[]>([]);
@@ -40,15 +61,13 @@ export default function ReportsTab() {
   const [rate, setRate] = useState<Rate | null>(null);
   const [rateHistory, setRateHistory] = useState<RateHistory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState(monthKey(new Date().toISOString().slice(0, 10)));
+  const [selectedMonth, setSelectedMonth] = useState(monthKey(todayStr()));
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const twelveMonthsAgo = new Date();
-        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
-        const from = twelveMonthsAgo.toISOString().split('T')[0];
+        const from = shiftDate(todayStr(), -365);
 
         const [cowsData, milkData, expensesData, rateData, salesData, rateHist] = await Promise.all([
           api.getCows(),
@@ -149,19 +168,50 @@ export default function ReportsTab() {
   const selectedExpenses = expenses.filter(e => rangeMonthKeys.includes(monthKey(e.date)));
   const selectedSales = sales.filter(s => rangeMonthKeys.includes(monthKey(s.date)));
 
-  const costPerAnimal = cows.filter(c => c.status !== 'sold').map(cow => {
-    const cowMilk = selectedMilk.filter(m => m.cowId === cow._id).reduce((a, m) => a + (m.morning || 0) + (m.evening || 0), 0);
-    const cowRevenue = calcRevenueWithHistory(
-      selectedMilk.filter(m => m.cowId === cow._id), rateHistory, currentRate, rate?.date || ''
-    );
-    const cowExp = selectedExpenses.filter(e => e.cowId === cow._id && e.type !== 'purchasing').reduce((a, e) => a + (e.amount || 0), 0);
+  const costPerAnimal: CostAnimal[] = cows.filter(c => c.status !== 'sold').map(cow => {
+    const cowMilkRecords = selectedMilk.filter(m => m.cowId === cow._id);
+    const cowMilk = cowMilkRecords.reduce((a, m) => a + (m.morning || 0) + (m.evening || 0), 0);
+    const cowRevenue = calcRevenueWithHistory(cowMilkRecords, rateHistory, currentRate, rate?.date || '');
+    const directExpenses = selectedExpenses.filter(e => e.cowId === cow._id && DIRECT_EXPENSE_TYPES.includes(e.type));
+    const cowExp = directExpenses.reduce((a, e) => a + (e.amount || 0), 0);
+    const cowFeed = directExpenses.filter(e => e.type === 'feed').reduce((a, e) => a + (e.amount || 0), 0);
     const cowPurchase = selectedExpenses.filter(e => e.cowId === cow._id && e.type === 'purchasing').reduce((a, e) => a + (e.amount || 0), 0);
     const cowSales = selectedSales.filter(s => s.cowId === cow._id).reduce((a, s) => a + (s.salePrice || 0), 0);
-    return { ...cow, milkL: cowMilk, revenue: cowRevenue, expenses: cowExp, purchaseInMonth: cowPurchase, saleIncome: cowSales, net: cowRevenue + cowSales - cowExp - cowPurchase };
+    return {
+      ...cow,
+      category: animalCategory(cow),
+      milkL: cowMilk,
+      revenue: cowRevenue,
+      expenses: cowExp,
+      feed: cowFeed,
+      purchaseInMonth: cowPurchase,
+      saleIncome: cowSales,
+      net: cowRevenue + cowSales - cowExp - cowPurchase,
+    };
   }).sort((a, b) => b.milkL - a.milkL);
 
   // Farm-wide expenses (no cowId assigned)
   const farmWideExpenses = selectedExpenses.filter(e => !e.cowId).reduce((a, e) => a + (e.amount || 0), 0);
+
+  // Avg Milk / Cow divides by all animals classified as cows, including zero-milk cows.
+  const categoryStats = ([
+    { key: 'cow' as const, label: 'Cow', icon: '🐄' },
+    { key: 'bull' as const, label: 'Bull', icon: '🐂' },
+    { key: 'calf' as const, label: 'Calf', icon: '🐮' },
+  ]).map(group => {
+    const animals = costPerAnimal.filter(animal => animal.category === group.key);
+    const count = animals.length;
+    const totalCost = animals.reduce((sum, animal) => sum + animal.expenses, 0);
+    const totalFeed = animals.reduce((sum, animal) => sum + animal.feed, 0);
+    const totalMilk = animals.reduce((sum, animal) => sum + animal.milkL, 0);
+    return {
+      ...group,
+      count,
+      avgCost: count > 0 ? totalCost / count : null,
+      avgFeed: count > 0 ? totalFeed / count : null,
+      avgMilk: group.key === 'cow' && count > 0 ? totalMilk / count : null,
+    };
+  });
 
   const monthOptions = months.map(mk => ({ key: mk, label: monthLabel(mk) }));
 
@@ -266,6 +316,38 @@ export default function ReportsTab() {
         ) : (
           <p className="text-sm text-slate-400">No expenses for this period</p>
         )}
+      </div>
+
+      {/* ── Category Cost Averages ─────────────────────────────── */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
+        <div className="mb-4">
+          <h3 className="font-semibold text-slate-800 dark:text-slate-100">Average Cost by Category — {rangeLabel}</h3>
+          <p className="text-xs text-slate-400 mt-1">Direct costs exclude animal purchases and farm-wide/unassigned expenses. Avg Milk / Cow divides by all cows in the group, including zero-milk cows.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {categoryStats.map(group => (
+            <div key={group.key} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-slate-800 dark:text-slate-100">{group.icon} {group.label}</h4>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-700">{group.count}</span>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-500 dark:text-slate-400">Avg Cost / Animal</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-100">{group.avgCost === null ? '-' : fmtPKR(group.avgCost)}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-500 dark:text-slate-400">Avg Feed / Animal</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-100">{group.avgFeed === null ? '-' : fmtPKR(group.avgFeed)}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-500 dark:text-slate-400">Avg Milk / Cow</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-100">{group.avgMilk === null ? '-' : fmtL(group.avgMilk)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ── Cost per Animal ────────────────────────────────────── */}
@@ -427,18 +509,19 @@ function ExportButton({ label, color: _color, onGenerate }: { label: string; col
         </div>
       </div>
       {showConfirm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowConfirm(false)}>
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-stone-200 dark:border-stone-800 shadow-lg p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-bold text-stone-800 dark:text-stone-100 mb-2">Download {label}</h3>
-            <p className="text-sm text-stone-500 mb-4">Export data for <span className="font-medium">{rangeLabels[range]}</span>?</p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-sm text-stone-600">Cancel</button>
-              <button onClick={() => { onGenerate(parseInt(range)); setShowConfirm(false); }} className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg flex items-center gap-2">
-                <Download className="w-4 h-4" /> Download PDF
-              </button>
-            </div>
+        <ViewportModal
+          onClose={() => setShowConfirm(false)}
+          panelClassName="bg-white dark:bg-slate-900 rounded-xl border border-stone-200 dark:border-stone-800 shadow-lg p-6 max-w-sm w-full"
+        >
+          <h3 className="text-sm font-bold text-stone-800 dark:text-stone-100 mb-2">Download {label}</h3>
+          <p className="text-sm text-stone-500 mb-4">Export data for <span className="font-medium">{rangeLabels[range]}</span>?</p>
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-sm text-stone-600">Cancel</button>
+            <button onClick={() => { onGenerate(parseInt(range)); setShowConfirm(false); }} className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg flex items-center gap-2">
+              <Download className="w-4 h-4" /> Download PDF
+            </button>
           </div>
-        </div>
+        </ViewportModal>
       )}
     </>
   );
@@ -502,20 +585,21 @@ function CowReportButton({ cows, rate, rateHistory, rateDate }: { cows: Cow[]; r
 
       {/* Confirm Dialog */}
       {showConfirm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowConfirm(false)}>
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-2">Download Cow Report</h3>
-            <p className="text-sm text-slate-500 mb-4">
-              Export <span className="font-medium text-slate-700 dark:text-slate-300">{cows.find(c => c._id === selectedCow)?.name}</span> data for <span className="font-medium">{rangeLabel[range]}</span>?
-            </p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800">Cancel</button>
-              <button onClick={confirmDownload} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg flex items-center gap-2">
-                <Download className="w-4 h-4" /> Download PDF
-              </button>
-            </div>
+        <ViewportModal
+          onClose={() => setShowConfirm(false)}
+          panelClassName="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg p-6 max-w-sm w-full"
+        >
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-2">Download Cow Report</h3>
+          <p className="text-sm text-slate-500 mb-4">
+            Export <span className="font-medium text-slate-700 dark:text-slate-300">{cows.find(c => c._id === selectedCow)?.name}</span> data for <span className="font-medium">{rangeLabel[range]}</span>?
+          </p>
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800">Cancel</button>
+            <button onClick={confirmDownload} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg flex items-center gap-2">
+              <Download className="w-4 h-4" /> Download PDF
+            </button>
           </div>
-        </div>
+        </ViewportModal>
       )}
     </>
   );
