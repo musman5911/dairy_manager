@@ -202,7 +202,33 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 tab-panel">
+      <div className="relative overflow-hidden rounded-3xl border border-emerald-200/70 dark:border-emerald-900/40 bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 p-5 sm:p-6 text-white shadow-xl shadow-emerald-900/10">
+        <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl animate-float-slow" />
+        <div className="absolute right-8 bottom-4 text-7xl opacity-10 animate-float-slower">🐄</div>
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[11px] font-mono uppercase tracking-[0.25em] text-emerald-100">Daily overview</p>
+            <h2 className="mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight">Farm Dashboard</h2>
+            <p className="mt-1 text-sm text-emerald-50/90">{todayStr} · milk, profit, animal health, and recent activity</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center sm:min-w-[320px]">
+            <div className="rounded-2xl bg-white/12 p-3 backdrop-blur-sm ring-1 ring-white/15">
+              <p className="text-[10px] uppercase text-emerald-100">Milk</p>
+              <p className="text-lg font-bold">{fmt(todayMilk)}L</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 p-3 backdrop-blur-sm ring-1 ring-white/15">
+              <p className="text-[10px] uppercase text-emerald-100">Net</p>
+              <p className="text-lg font-bold">{fmtPKR(todayNet)}</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 p-3 backdrop-blur-sm ring-1 ring-white/15">
+              <p className="text-[10px] uppercase text-emerald-100">Alerts</p>
+              <p className="text-lg font-bold">{data.healthAlerts.length}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ── Health Alerts Banner ──────────────── */}
       {data.healthAlerts.length > 0 && (
         <button onClick={() => setShowAlertsPopup(true)}
@@ -550,26 +576,29 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
 function StatCard({ label, value, icon: Icon, trend, trendUnit = '', subText, isNegative, isProfit }: any) {
   const isPositive = trend && trend > 0;
   return (
-    <div className={`bg-white dark:bg-slate-900 rounded-xl border shadow-sm p-4 flex flex-col justify-between hover:border-teal-300 dark:hover:border-teal-700 transition-all duration-200 cursor-pointer ${
-      isProfit === true ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50/30 dark:bg-emerald-900/5' :
-      isProfit === false ? 'border-red-300 dark:border-red-700 bg-red-50/30 dark:bg-red-900/5' :
-      'border-slate-200 dark:border-slate-800'
+    <div className={`group relative overflow-hidden rounded-2xl border bg-white/90 dark:bg-slate-900/90 p-4 shadow-sm backdrop-blur transition-all duration-200 hover:-translate-y-1 hover:shadow-xl ${
+      isProfit === true ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10' :
+      isProfit === false ? 'border-rose-200 dark:border-rose-800 bg-rose-50/60 dark:bg-rose-900/10' :
+      'border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700'
     }`}>
-      <div className="flex justify-between items-start mb-2">
-        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</span>
-        <Icon className="w-4 h-4 text-slate-400" />
+      <div className="absolute -right-8 -top-8 h-20 w-20 rounded-full bg-emerald-500/10 transition-transform duration-300 group-hover:scale-125" />
+      <div className="relative flex justify-between items-start mb-4">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
+        <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/30 p-2 text-emerald-600 dark:text-emerald-300">
+          <Icon className="w-4 h-4" />
+        </div>
       </div>
-      <div>
-        <div className="flex items-baseline gap-2">
-          <span className={`text-2xl font-bold ${isNegative ? 'text-red-600 dark:text-red-400' : isProfit === true ? 'text-emerald-700 dark:text-emerald-400' : isProfit === false ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>{value}</span>
+      <div className="relative">
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <span className={`font-display text-2xl font-bold ${isNegative ? 'text-red-600 dark:text-red-400' : isProfit === true ? 'text-emerald-700 dark:text-emerald-400' : isProfit === false ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>{value}</span>
           {trend !== undefined && trend !== 0 && (
-            <div className={`flex items-center text-[10px] font-bold ${isPositive ? 'text-emerald-600' : 'text-red-600'}`}>
+            <div className={`flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${isPositive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'}`}>
               {isPositive ? <TrendingUp className="w-3 h-3 mr-0.5" /> : <TrendingDown className="w-3 h-3 mr-0.5" />}
               {Math.abs(trend)}{trendUnit}
             </div>
           )}
         </div>
-        {subText && <p className="text-[10px] text-slate-400 mt-1">{subText}</p>}
+        {subText && <p className="text-[11px] text-slate-400 mt-1">{subText}</p>}
       </div>
     </div>
   );

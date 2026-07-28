@@ -1,6 +1,13 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
 
 * {
   box-sizing: border-box;
@@ -12,7 +19,22 @@ html {
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.dark body {
+  background-color: #020617;
+  color: #e2e8f0;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
 }
 
 /* Fix chart focus border on mobile */
@@ -85,12 +107,31 @@ button:not(:disabled),
 a,
 input,
 select,
-textarea {
-  transition-duration: 180ms;
+textarea,
+.cursor-pointer {
+  transition-property: transform, box-shadow, background-color, color, border-color, opacity;
+  transition-duration: 140ms;
+  transition-timing-function: cubic-bezier(.2,.8,.2,1);
 }
 
-button:not(:disabled):active {
-  transform: scale(0.98);
+button:not(:disabled):active,
+[role="button"]:active {
+  transform: scale(0.97);
+}
+
+.tab-panel {
+  animation: dm-tab-in 260ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tab-panel > * {
+    animation: dm-slide-up 280ms cubic-bezier(.2,.8,.2,1) both;
+  }
+  .tab-panel > *:nth-child(1) { animation-delay: 0ms; }
+  .tab-panel > *:nth-child(2) { animation-delay: 35ms; }
+  .tab-panel > *:nth-child(3) { animation-delay: 70ms; }
+  .tab-panel > *:nth-child(4) { animation-delay: 105ms; }
+  .tab-panel > *:nth-child(5) { animation-delay: 135ms; }
 }
 
 @keyframes dm-fade-in {
