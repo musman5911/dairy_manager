@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   TrendingUp, TrendingDown, Droplets,
   DollarSign, Hash, AlertCircle, Heart, X, History, PieChart as PieChartIcon
@@ -580,15 +581,25 @@ function StatCard({ label, value, icon: Icon, trend, trendUnit = '', subText, is
 }
 
 function Popup({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 transition-opacity duration-200" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto p-5 transition-transform duration-200" onClick={e => e.stopPropagation()}>
+  return createPortal(
+    <div
+      className="fixed top-0 left-0 w-screen h-screen bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-[9999] p-4 transition-opacity duration-200"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      style={{ width: '100vw', height: '100vh' }}
+    >
+      <div
+        className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto p-5 animate-scale-in transition-transform duration-200"
+        onClick={e => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">{title}</h3>
           <button onClick={onClose} className="hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg p-1 transition-colors"><X className="w-5 h-5 text-slate-400" /></button>
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
