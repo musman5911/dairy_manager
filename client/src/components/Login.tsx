@@ -140,7 +140,11 @@ export default function Login({ onLogin }: { onLogin: (t: string, r: string, u: 
 
       <header className="fixed top-0 left-0 right-0 h-14 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-800 shadow-sm flex items-center px-4 z-10 animate-slide-down">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-green-700 rounded-lg flex items-center justify-center text-white text-sm shadow-inner animate-pulse-glow">🐄</div>
+          <img
+  src="/usman_Dairyfarm.png"
+  alt="Usman Dairy Farm logo"
+  className="w-9 h-9 rounded-xl object-cover border border-emerald-100 dark:border-emerald-900 bg-white shadow-inner animate-pulse-glow"
+/>
           <div>
             <h1 className="text-sm font-bold leading-tight">Usman Dairy Farm</h1>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight uppercase tracking-wider font-medium">Management System</p>
