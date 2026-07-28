@@ -12,7 +12,7 @@ if (!SECRET) {
   process.exit(1);
 }
 
-const TOKEN_TTL = process.env.JWT_EXPIRES_IN || '30d';
+const TOKEN_TTL = process.env.JWT_EXPIRES_IN || '7d';
 
 // Rate limiters
 const loginLimiter = rateLimit({

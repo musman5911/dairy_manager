@@ -128,6 +128,7 @@ Express serves the built frontend from `client/dist/` and handles all `/api/*` r
 |---------------|-------------------------------------------|
 | `MONGO_URI`   | MongoDB Atlas connection string            |
 | `JWT_SECRET`  | Secret used to sign JWT auth tokens        |
+| `JWT_EXPIRES_IN` | Optional JWT session lifetime; defaults to `7d` |
 | `PORT`        | Port the backend server listens on         |
 | `SMTP_HOST`   | SMTP server host for password reset emails |
 | `SMTP_PORT`   | SMTP server port, usually `465` or `587`   |
@@ -144,7 +145,7 @@ Express serves the built frontend from `client/dist/` and handles all `/api/*` r
 ## Security Notes
 
 - `.env` is gitignored and must never be committed. Rotate credentials immediately if they're ever exposed.
-- All write/admin routes are protected via JWT (`protect`) and role checks (`adminOnly`).
+- All write/admin routes are protected via JWT (`protect`) and role checks (`adminOnly`); `protect` also verifies the user still exists and is active on every request.
 - Passwords are hashed with bcrypt before storage.
 - A broad `/api` rate limiter protects authenticated data routes from leaked-token abuse or accidental script loops.
 - In production, set `FRONTEND_URL` to the live app URL so CORS is restricted instead of falling back to `*`.
