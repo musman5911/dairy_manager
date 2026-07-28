@@ -67,9 +67,9 @@ export default function App() {
         <div className="max-w-7xl w-full mx-auto flex items-center gap-2 flex-1 min-w-0">
           <a href="https://dairymanager--usman5911.replit.app/" target="_self" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <img
-  src="/usman_Dairyfarm.png"
+  src="/dairy-farm-logo-round-512.png"
   alt="Usman Dairy Farm logo"
-  className="w-9 h-9 rounded-xl object-cover border border-emerald-100 dark:border-emerald-900 bg-white shrink-0 animate-pulse-glow shadow-sm"
+  className="w-9 h-9 rounded-full object-cover border border-emerald-100 dark:border-emerald-900 bg-white shrink-0 animate-pulse-glow shadow-sm"
 />
             <div className="min-w-0">
               <p className="text-sm font-bold leading-tight truncate text-slate-900 dark:text-white">Usman Dairy Farm</p>
