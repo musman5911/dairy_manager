@@ -66,7 +66,11 @@ export default function App() {
       <header className="sticky top-0 z-40 h-14 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 shadow-sm flex items-center px-4 sm:px-6 gap-3 animate-slide-down">
         <div className="max-w-7xl w-full mx-auto flex items-center gap-2 flex-1 min-w-0">
           <a href="https://dairymanager--usman5911.replit.app/" target="_self" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center text-white text-base shrink-0 animate-pulse-glow">🐄</div>
+            <img
+  src="/usman_Dairyfarm.png"
+  alt="Usman Dairy Farm logo"
+  className="w-9 h-9 rounded-xl object-cover border border-emerald-100 dark:border-emerald-900 bg-white shrink-0 animate-pulse-glow shadow-sm"
+/>
             <div className="min-w-0">
               <p className="text-sm font-bold leading-tight truncate text-slate-900 dark:text-white">Usman Dairy Farm</p>
               <p className="hidden sm:block text-[10px] font-mono text-slate-400 uppercase tracking-wider">Farm Management System</p>
