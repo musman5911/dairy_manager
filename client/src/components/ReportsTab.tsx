@@ -17,6 +17,7 @@ import type { Cow, MilkEntry, Expense, Rate, Sale, RateHistory } from '../types'
 import { fmt, fmtPKR, fmtL, monthKey, monthLabel, lastNMonths } from '../utils/format';
 import { calcRevenueWithHistory } from '../utils/rates';
 import { generateMilkReport, generateExpenseReport, generateSummaryReport, generateCowReport } from '../reportExport';
+import ViewportModal from './ViewportModal';
 
 function exportRangeLabel(days: number): string {
   const labels: Record<number, string> = { 1: 'Last 1 Day', 7: 'Last 7 Days', 30: 'Last 1 Month', 180: 'Last 6 Months', 365: 'Last 1 Year' };
@@ -427,18 +428,19 @@ function ExportButton({ label, color: _color, onGenerate }: { label: string; col
         </div>
       </div>
       {showConfirm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowConfirm(false)}>
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-stone-200 dark:border-stone-800 shadow-lg p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-bold text-stone-800 dark:text-stone-100 mb-2">Download {label}</h3>
-            <p className="text-sm text-stone-500 mb-4">Export data for <span className="font-medium">{rangeLabels[range]}</span>?</p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-sm text-stone-600">Cancel</button>
-              <button onClick={() => { onGenerate(parseInt(range)); setShowConfirm(false); }} className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg flex items-center gap-2">
-                <Download className="w-4 h-4" /> Download PDF
-              </button>
-            </div>
+        <ViewportModal
+          onClose={() => setShowConfirm(false)}
+          panelClassName="bg-white dark:bg-slate-900 rounded-xl border border-stone-200 dark:border-stone-800 shadow-lg p-6 max-w-sm w-full"
+        >
+          <h3 className="text-sm font-bold text-stone-800 dark:text-stone-100 mb-2">Download {label}</h3>
+          <p className="text-sm text-stone-500 mb-4">Export data for <span className="font-medium">{rangeLabels[range]}</span>?</p>
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-sm text-stone-600">Cancel</button>
+            <button onClick={() => { onGenerate(parseInt(range)); setShowConfirm(false); }} className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg flex items-center gap-2">
+              <Download className="w-4 h-4" /> Download PDF
+            </button>
           </div>
-        </div>
+        </ViewportModal>
       )}
     </>
   );
@@ -502,20 +504,21 @@ function CowReportButton({ cows, rate, rateHistory, rateDate }: { cows: Cow[]; r
 
       {/* Confirm Dialog */}
       {showConfirm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowConfirm(false)}>
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-2">Download Cow Report</h3>
-            <p className="text-sm text-slate-500 mb-4">
-              Export <span className="font-medium text-slate-700 dark:text-slate-300">{cows.find(c => c._id === selectedCow)?.name}</span> data for <span className="font-medium">{rangeLabel[range]}</span>?
-            </p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800">Cancel</button>
-              <button onClick={confirmDownload} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg flex items-center gap-2">
-                <Download className="w-4 h-4" /> Download PDF
-              </button>
-            </div>
+        <ViewportModal
+          onClose={() => setShowConfirm(false)}
+          panelClassName="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg p-6 max-w-sm w-full"
+        >
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-2">Download Cow Report</h3>
+          <p className="text-sm text-slate-500 mb-4">
+            Export <span className="font-medium text-slate-700 dark:text-slate-300">{cows.find(c => c._id === selectedCow)?.name}</span> data for <span className="font-medium">{rangeLabel[range]}</span>?
+          </p>
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800">Cancel</button>
+            <button onClick={confirmDownload} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg flex items-center gap-2">
+              <Download className="w-4 h-4" /> Download PDF
+            </button>
           </div>
-        </div>
+        </ViewportModal>
       )}
     </>
   );

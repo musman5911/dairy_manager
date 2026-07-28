@@ -5,6 +5,7 @@ import { api } from '../api';
 import type { Cow, MilkEntry, Expense, HealthRecord, RateHistory } from '../types';
 import { fmt, fmtPKR, fmtL } from '../utils/format';
 import { calcRevenueWithHistory } from '../utils/rates';
+import ViewportModal from './ViewportModal';
 
 interface CowSummary {
   cow: Cow;
@@ -47,11 +48,9 @@ export default function CowDetailPopup({ cowId, rate, rateHistory = [], rateDate
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-        <div className="bg-white dark:bg-slate-900 rounded-xl p-8" onClick={e => e.stopPropagation()}>
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto" />
-        </div>
-      </div>
+      <ViewportModal onClose={onClose} panelClassName="bg-white dark:bg-slate-900 rounded-xl p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto" />
+      </ViewportModal>
     );
   }
 
@@ -61,11 +60,10 @@ export default function CowDetailPopup({ cowId, rate, rateHistory = [], rateDate
   const milkRev30 = calcRevenueWithHistory(milk.records30, rateHistory, rate, rateDate);
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div
-        className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
-      >
+    <ViewportModal
+      onClose={onClose}
+      panelClassName="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto"
+    >
         {/* Header */}
         <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-5 flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
@@ -223,8 +221,7 @@ export default function CowDetailPopup({ cowId, rate, rateHistory = [], rateDate
             )}
           </div>
         </div>
-      </div>
-    </div>
+    </ViewportModal>
   );
 }
 

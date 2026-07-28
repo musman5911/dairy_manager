@@ -311,7 +311,7 @@ export default function AdminPanel({ username, onClose }: Props) {
   ] as const;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-6 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+    <div className="fixed top-0 left-0 w-screen h-screen z-[9999] flex items-center justify-center p-2 sm:p-6 bg-black/50 backdrop-blur-sm animate-fade-in" style={{ width: '100vw', height: '100vh' }} onClick={onClose}>
       <div
         className="w-full max-w-4xl max-h-[94vh] sm:max-h-[88vh] bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-scale-in"
         onClick={(event) => event.stopPropagation()}
