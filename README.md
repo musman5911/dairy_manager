@@ -14,9 +14,25 @@ A full-stack dairy farm management app for tracking cows, milk production, expen
 - **Expenses** — track feed, medicine, labor, equipment, and misc costs per cow
 - **Health** — vaccinations, treatments, checkups, deworming, with upcoming/overdue reminders
 - **Buyers** — manage milk buyers and default rates
-- **Reports** — revenue vs. expenses, cow productivity ranking, monthly trends
+- **Reports** — revenue vs. expenses, cow productivity ranking, monthly trends, and Cow/Bull/Calf average cost metrics
 - **Settings** — animated settings center for profile, admin/worker user management, milk rates, buyers, email, backup & restore
 - **Auth** — JWT-based login with admin/worker roles, SMTP email password reset for admins, and account management
+
+---
+
+## Reports: Animal Category Metrics
+
+The Reports tab groups non-sold animals into **Cow 🐄**, **Bull 🐂**, and **Calf 🐮** categories:
+
+- **Calf** — `isCalf === true` or `status === 'calf'`
+- **Bull** — `gender === 'male'`, unless already classified as a calf
+- **Cow** — all remaining non-sold animals
+
+For each category, the app shows:
+
+- **Avg Cost / Animal** — average direct assigned expenses per animal: feed, medicine, labor, equipment, and misc. One-time purchasing expenses and farm-wide/unassigned expenses are excluded.
+- **Avg Feed / Animal** — average assigned feed expense per animal.
+- **Avg Milk / Cow** — Cow group only; total milk divided by all cows in the selected period, including cows with zero milk.
 
 ---
 
@@ -129,6 +145,12 @@ Express serves the built frontend from `client/dist/` and handles all `/api/*` r
 - `.env` is gitignored and must never be committed. Rotate credentials immediately if they're ever exposed.
 - All write/admin routes are protected via JWT (`protect`) and role checks (`adminOnly`).
 - Passwords are hashed with bcrypt before storage.
+
+---
+
+## Known Issues
+
+- **Resolved:** Dashboard "Today" widgets and cow table columns now use a separate always-fetched today dataset, so selecting a custom historical range no longer makes today's milk/expense values appear as `-`.
 
 ---
 

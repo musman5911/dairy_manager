@@ -54,13 +54,16 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
     rate: Rate | null;
     healthAlerts: HealthRecord[];
     allHealth: HealthRecord[];
-  }>({ cows: [], milk: [], expenses: [], rate: null, healthAlerts: [], allHealth: [] });
+    todayMilk: MilkEntry[];
+    todayExpenses: Expense[];
+  }>({ cows: [], milk: [], expenses: [], rate: null, healthAlerts: [], allHealth: [], todayMilk: [], todayExpenses: [] });
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [cows, milk, expenses, rate, healthAlerts, rateHist, allHealth] = await Promise.all([
+        const today = getTodayStr();
+        const [cows, milk, expenses, rate, healthAlerts, rateHist, allHealth, todayMilk, todayExpenses] = await Promise.all([
           api.getCows(),
           api.getMilk({ from: rangeFrom, to: rangeTo }),
           api.getExpenses({ from: rangeFrom, to: rangeTo }),
@@ -68,8 +71,10 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
           api.getUpcomingHealth(),
           api.getRateHistory(),
           api.getHealth(),
+          api.getMilk({ from: today, to: today }),
+          api.getExpenses({ from: today, to: today }),
         ]);
-        setData({ cows, milk, expenses, rate, healthAlerts, allHealth });
+        setData({ cows, milk, expenses, rate, healthAlerts, allHealth, todayMilk, todayExpenses });
         setRateHistory(rateHist);
       } catch (err) {
         console.error('Failed to fetch dashboard data:', err);
@@ -124,7 +129,7 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
   };
   const yesterdayStr = shiftDate(todayStr, -1);
 
-  const todayMilk = Math.round(data.milk.filter(m => m.date === todayStr).reduce((a, c) => a + c.morning + c.evening, 0) * 100) / 100;
+  const todayMilk = Math.round(data.todayMilk.reduce((a, c) => a + c.morning + c.evening, 0) * 100) / 100;
   const rangeMilkEntries = data.milk.filter(m => m.date >= rangeFrom && m.date <= rangeTo);
   const rangeTotalMilk = Math.round(rangeMilkEntries.reduce((a, c) => a + (c.morning || 0) + (c.evening || 0), 0) * 100) / 100;
   const rangeRevenue = calcRevenueWithHistory(rangeMilkEntries, rateHistory, data.rate?.value || 0, data.rate?.date || '');
@@ -153,9 +158,8 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
     .sort((a, b) => b.total - a.total);
 
   // Today's expense/revenue data
-  const todayExpenses = data.expenses.filter(e => e.date === todayStr);
-  const todayMilkEntriesForRevenue = data.milk.filter(m => m.date === todayStr);
-  const todayMilkRev = Math.round(calcRevenueWithHistory(todayMilkEntriesForRevenue, rateHistory, data.rate?.value || 0, data.rate?.date || ''));
+  const todayExpenses = data.todayExpenses;
+  const todayMilkRev = Math.round(calcRevenueWithHistory(data.todayMilk, rateHistory, data.rate?.value || 0, data.rate?.date || ''));
   const todayPurchases = todayExpenses.filter(e => e.type === 'purchasing').reduce((a, e) => a + e.amount, 0);
   const expByType: { name: string; value: number; color: string }[] = [];
   const todayExpByType: Record<string, number> = {};
@@ -171,7 +175,7 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
   const now = new Date();
   const timeStr = now.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true });
   const recentActivity: { time: string; icon: string; text: string; color: string }[] = [];
-  const todayMilkEntries = data.milk.filter(m => m.date === todayStr);
+  const todayMilkEntries = data.todayMilk;
   if (todayMilkEntries.length > 0) {
     const totalL = todayMilkEntries.reduce((a, m) => a + m.morning + m.evening, 0);
     recentActivity.push({ time: `${todayStr} ${timeStr}`, icon: '🥛', text: `Milk logged: ${fmt(totalL)}L for ${todayMilkEntries.length} cows`, color: 'text-teal-600' });
@@ -217,8 +221,8 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
     return cow.status === cowFilter;
   }).sort((a, b) => {
     // Sort: active first, then by milk today
-    const aMilk = data.milk.find(m => m.cowId === a._id && m.date === todayStr);
-    const bMilk = data.milk.find(m => m.cowId === b._id && m.date === todayStr);
+    const aMilk = data.todayMilk.find(m => m.cowId === a._id && m.date === todayStr);
+    const bMilk = data.todayMilk.find(m => m.cowId === b._id && m.date === todayStr);
     const aTotal = aMilk ? aMilk.morning + aMilk.evening : 0;
     const bTotal = bMilk ? bMilk.morning + bMilk.evening : 0;
     return bTotal - aTotal;
@@ -425,9 +429,9 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
             </thead>
             <tbody className="text-sm">
               {filteredCows.map(cow => {
-                const todayMilkEntry = data.milk.find(m => m.cowId === cow._id && m.date === todayStr);
+                const todayMilkEntry = data.todayMilk.find(m => m.cowId === cow._id && m.date === todayStr);
                 const totalToday = todayMilkEntry ? (todayMilkEntry.morning + todayMilkEntry.evening) : 0;
-                const todayExp = data.expenses.filter(e => e.cowId === cow._id && e.date === todayStr).reduce((a, e) => a + e.amount, 0);
+                const todayExp = data.todayExpenses.filter(e => e.cowId === cow._id && e.date === todayStr).reduce((a, e) => a + e.amount, 0);
                 const todayHealth = data.allHealth.filter(h => h.cowId === cow._id && h.date === todayStr);
                 const isMale = cow.gender === 'male';
                 const statusColor = cow.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400' :
