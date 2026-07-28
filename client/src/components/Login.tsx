@@ -172,7 +172,13 @@ export default function Login({ onLogin }: { onLogin: (t: string, r: string, u: 
           <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl shadow-emerald-900/10 overflow-hidden animate-scale-in">
             <div className="relative overflow-hidden bg-gradient-to-br from-emerald-600 to-teal-600 p-7 text-center text-white">
               <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/10 blur-xl animate-float-slow" />
-              <div className="relative mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 text-4xl shadow-lg animate-pop-in">🐄</div>
+              <div className="relative mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-3xl bg-white/20 p-1.5 shadow-lg animate-pop-in">
+  <img
+    src="/usman_Dairyfarm.png"
+    alt="Usman Dairy Farm logo"
+    className="h-full w-full rounded-2xl object-cover bg-white"
+  />
+</div>
               <h1 className="relative font-display text-2xl font-bold tracking-tight">Usman Dairy Farm</h1>
               <p className="relative mt-1 text-sm text-emerald-50">Dairy Management</p>
             </div>
