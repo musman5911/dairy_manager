@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import type { Cow, Expense, ExpenseType } from '../types';
+import { todayStr } from '../utils/date';
 import { 
   Plus, 
   Calendar, 
@@ -37,14 +38,14 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ isAdmin, canDelete = isAdmin 
   // Filters — default to current month
   const now = new Date();
   const defaultFrom = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  const defaultTo = now.toISOString().split('T')[0];
+  const defaultTo = todayStr();
   const [dateFrom, setDateFrom] = useState(defaultFrom);
   const [dateTo, setDateTo] = useState(defaultTo);
   const [typeFilter, setTypeFilter] = useState<string>('');
 
   // Form
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: todayStr(),
     type: 'feed' as ExpenseType,
     amount: '',
     cowId: '',
@@ -89,7 +90,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ isAdmin, canDelete = isAdmin 
       }
 
       setFormData({
-        date: new Date().toISOString().split('T')[0],
+        date: todayStr(),
         type: 'feed',
         amount: '',
         cowId: '',
@@ -250,7 +251,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ isAdmin, canDelete = isAdmin 
                       setEditingId(null);
                       setShowForm(false);
                       setFormData({
-                        date: new Date().toISOString().split('T')[0],
+                        date: todayStr(),
                         type: 'feed',
                         amount: '',
                         cowId: '',

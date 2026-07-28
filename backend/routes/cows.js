@@ -11,6 +11,7 @@ const {
   sendValidationError,
   parsePagination,
 } = require('./input');
+const { todayStr, daysAgoStr } = require('../utils/date');
 
 function cowPayload(body, { requireBasics = false } = {}) {
   const errors = [];
@@ -90,11 +91,8 @@ router.get('/:id/summary', protect, async (req, res) => {
     const cow = await Cow.findById(req.params.id);
     if (!cow) return res.status(404).json({ error: 'Not found' });
 
-    const today = new Date();
-    const daysAgo7 = new Date(); daysAgo7.setDate(today.getDate() - 7);
-    const daysAgo30 = new Date(); daysAgo30.setDate(today.getDate() - 30);
-    const d7 = daysAgo7.toISOString().slice(0, 10);
-    const d30 = daysAgo30.toISOString().slice(0, 10);
+    const d7 = daysAgoStr(7);
+    const d30 = daysAgoStr(30);
 
     const [milk7, milk30, allMilk, expenses30, allExpenses, health, offspring, sale] = await Promise.all([
       Milk.find({ cowId: req.params.id, date: { $gte: d7 } }),
@@ -118,8 +116,8 @@ router.get('/:id/summary', protect, async (req, res) => {
 
     const mother = cow.motherId ? await Cow.findById(cow.motherId) : null;
 
-    // Lifetime profit calculation (for sold cows)
-    const totalMilkRevenue = allMilk.reduce((a, m) => a + ((m.morning || 0) + (m.evening || 0)), 0); // liters only, rate applied on frontend
+    // Lifetime profit calculation (for sold cows). totalMilkLiters is saleable liters only; calf milk is not sold.
+    const totalSaleableMilkLiters = allMilk.reduce((a, m) => a + Math.max(0, (m.morning || 0) + (m.evening || 0) - (m.calfMilk || 0)), 0);
     const totalDirectExpenses = allExpenses.filter(e => e.type !== 'purchasing').reduce((a, e) => a + (e.amount || 0), 0);
     const totalHealthCost = await Health.find({ cowId: req.params.id }).then(records => records.reduce((a, h) => a + (h.cost || 0), 0));
     const salePrice = sale?.salePrice || 0;
@@ -127,7 +125,7 @@ router.get('/:id/summary', protect, async (req, res) => {
 
     res.json({
       cow,
-      milk: { last7Days: milk7Total, last30Days: milk30Total, calfMilk30Days: calfMilk30, records30: milk30, totalLiters: totalMilkRevenue },
+      milk: { last7Days: milk7Total, last30Days: milk30Total, calfMilk30Days: calfMilk30, records30: milk30, totalLiters: totalSaleableMilkLiters },
       expenses: { total30: expenses30.reduce((a, e) => a + (e.amount || 0), 0), byType: expByType, records30: expenses30, totalAll: totalDirectExpenses },
       health,
       offspring,
@@ -136,7 +134,8 @@ router.get('/:id/summary', protect, async (req, res) => {
       lifetime: {
         purchasePrice,
         salePrice,
-        totalMilkLiters: totalMilkRevenue,
+        totalMilkLiters: totalSaleableMilkLiters,
+        milkRecords: allMilk,
         totalDirectExpenses,
         totalHealthCost,
       },
@@ -155,7 +154,7 @@ router.post('/', protect, adminOnly, async (req, res) => {
     // If calf, link to mother's calvingHistory
     if (cow.motherId && cow.isCalf) {
       await Cow.findByIdAndUpdate(cow.motherId, {
-        $push: { calvingHistory: { date: cow.birthDate || new Date().toISOString().slice(0, 10), calfId: cow._id } }
+        $push: { calvingHistory: { date: cow.birthDate || todayStr(), calfId: cow._id } }
       });
     }
 
@@ -166,7 +165,7 @@ router.post('/', protect, adminOnly, async (req, res) => {
       await Expense.create({
         _id: expId,
         cowId: id,
-        date: new Date().toISOString().slice(0, 10),
+        date: todayStr(),
         type: 'purchasing',
         amount: payload.purchasePrice,
         note: `Purchased ${cow.name}${isCalf} — ${cow.breed}`,

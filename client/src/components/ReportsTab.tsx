@@ -16,6 +16,7 @@ import { api } from '../api';
 import type { Cow, MilkEntry, Expense, Rate, Sale, RateHistory } from '../types';
 import { fmt, fmtPKR, fmtL, monthKey, monthLabel, lastNMonths } from '../utils/format';
 import { calcRevenueWithHistory } from '../utils/rates';
+import { todayStr, shiftDate } from '../utils/date';
 import { generateMilkReport, generateExpenseReport, generateSummaryReport, generateCowReport } from '../reportExport';
 import ViewportModal from './ViewportModal';
 
@@ -41,15 +42,13 @@ export default function ReportsTab() {
   const [rate, setRate] = useState<Rate | null>(null);
   const [rateHistory, setRateHistory] = useState<RateHistory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState(monthKey(new Date().toISOString().slice(0, 10)));
+  const [selectedMonth, setSelectedMonth] = useState(monthKey(todayStr()));
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const twelveMonthsAgo = new Date();
-        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
-        const from = twelveMonthsAgo.toISOString().split('T')[0];
+        const from = shiftDate(todayStr(), -365);
 
         const [cowsData, milkData, expensesData, rateData, salesData, rateHist] = await Promise.all([
           api.getCows(),

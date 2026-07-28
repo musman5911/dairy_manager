@@ -8,9 +8,9 @@ import {
 } from 'recharts';
 import { api } from '../api';
 import { Cow, MilkEntry, Expense, HealthRecord, Rate, RateHistory } from '../types';
-import { fmt, fmtPKR } from '../utils/format';
+import { fmt, fmtPKR, monthKey } from '../utils/format';
 import { calcRevenueWithHistory } from '../utils/rates';
-import { todayStr as getTodayStr } from '../utils/date';
+import { todayStr as getTodayStr, shiftDate } from '../utils/date';
 import CowDetailPopup from './CowDetailPopup';
 import ViewportModal from './ViewportModal';
 
@@ -54,11 +54,8 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
     const fetchData = async () => {
       setLoading(true);
       try {
-        const now = new Date();
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(now.getDate() - 30);
-        const from = thirtyDaysAgo.toISOString().split('T')[0];
-        const to = now.toISOString().split('T')[0];
+        const to = getTodayStr();
+        const from = shiftDate(to, -30);
 
         const [cows, milk, expenses, rate, healthAlerts, rateHist, allHealth] = await Promise.all([
           api.getCows(),
@@ -102,19 +99,16 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
   }
 
   const todayStr = getTodayStr();
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+  const yesterdayStr = shiftDate(todayStr, -1);
 
   const todayMilk = Math.round(data.milk.filter(m => m.date === todayStr).reduce((a, c) => a + c.morning + c.evening, 0) * 100) / 100;
   const yesterdayMilk = Math.round(data.milk.filter(m => m.date === yesterdayStr).reduce((a, c) => a + c.morning + c.evening, 0) * 100) / 100;
   const milkTrend = Math.round((todayMilk - yesterdayMilk) * 100) / 100;
 
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  const monthlyMilkEntries = data.milk.filter(m => { const d = new Date(m.date); return d.getMonth() === currentMonth && d.getFullYear() === currentYear; });
+  const currentMonthKey = monthKey(todayStr);
+  const monthlyMilkEntries = data.milk.filter(m => monthKey(m.date) === currentMonthKey);
   const monthlyRevenue = calcRevenueWithHistory(monthlyMilkEntries, rateHistory, data.rate?.value || 0, data.rate?.date || '');
-  const monthlyExpenses = data.expenses.filter(e => { const d = new Date(e.date); return d.getMonth() === currentMonth && d.getFullYear() === currentYear; }).reduce((a, c) => a + c.amount, 0);
+  const monthlyExpenses = data.expenses.filter(e => monthKey(e.date) === currentMonthKey).reduce((a, c) => a + c.amount, 0);
   const profitLoss = monthlyRevenue - monthlyExpenses;
 
   // Top 3 producers
@@ -137,7 +131,8 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
 
   // Today's expense/revenue data
   const todayExpenses = data.expenses.filter(e => e.date === todayStr);
-  const todayMilkRev = Math.round(data.milk.filter(m => m.date === todayStr).reduce((a, m) => a + (m.morning || 0) + (m.evening || 0), 0) * (data.rate?.value || 0));
+  const todayMilkEntriesForRevenue = data.milk.filter(m => m.date === todayStr);
+  const todayMilkRev = Math.round(calcRevenueWithHistory(todayMilkEntriesForRevenue, rateHistory, data.rate?.value || 0, data.rate?.date || ''));
   const todayPurchases = todayExpenses.filter(e => e.type === 'purchasing').reduce((a, e) => a + e.amount, 0);
   const expByType: { name: string; value: number; color: string }[] = [];
   const todayExpByType: Record<string, number> = {};

@@ -5,6 +5,7 @@ import { api } from '../api';
 import type { Cow, MilkEntry, Expense, HealthRecord, RateHistory } from '../types';
 import { fmt, fmtPKR, fmtL } from '../utils/format';
 import { calcRevenueWithHistory } from '../utils/rates';
+import { todayStr, shiftDate } from '../utils/date';
 import ViewportModal from './ViewportModal';
 
 interface CowSummary {
@@ -15,7 +16,7 @@ interface CowSummary {
   offspring: Cow[];
   mother: Cow | null;
   sale: { salePrice: number } | null;
-  lifetime: { purchasePrice: number; salePrice: number; totalMilkLiters: number; totalDirectExpenses: number; totalHealthCost: number };
+  lifetime: { purchasePrice: number; salePrice: number; totalMilkLiters: number; milkRecords: MilkEntry[]; totalDirectExpenses: number; totalHealthCost: number };
 }
 
 function CowImg({ src, name, size = 'w-10 h-10' }: { src?: string; name: string; size?: string }) {
@@ -85,7 +86,7 @@ export default function CowDetailPopup({ cowId, rate, rateHistory = [], rateDate
               <h4 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-3">Lifetime Profit</h4>
               {(() => {
                 const l = data.lifetime;
-                const milkRev = l.totalMilkLiters * rate;
+                const milkRev = calcRevenueWithHistory(l.milkRecords || [], rateHistory, rate, rateDate);
                 const totalCost = l.purchasePrice + l.totalHealthCost + l.totalDirectExpenses;
                 const totalIncome = l.salePrice + milkRev;
                 const profit = totalIncome - totalCost;
@@ -158,12 +159,10 @@ export default function CowDetailPopup({ cowId, rate, rateHistory = [], rateDate
           {milk.records30.length > 0 && (() => {
             const chartData = [];
             for (let i = 13; i >= 0; i--) {
-              const d = new Date();
-              d.setDate(d.getDate() - i);
-              const dateStr = d.toISOString().slice(0, 10);
+              const dateStr = shiftDate(todayStr(), -i);
               const entry = milk.records30.find(m => m.date === dateStr);
               const total = entry ? Math.round(((entry.morning || 0) + (entry.evening || 0)) * 10) / 10 : 0;
-              chartData.push({ name: d.toLocaleDateString('en-US', { weekday: 'short' }), milk: total });
+              chartData.push({ name: new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' }), milk: total });
             }
             return (
               <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-4">

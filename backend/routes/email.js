@@ -3,10 +3,7 @@ const router = require('express').Router();
 const { protect, adminOnly } = require('../middleware/auth');
 const { sendMail, mailConfigured } = require('../utils/mailer');
 const { buildSummaryData, renderSummaryHtml } = require('../services/dailySummary');
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
+const { todayStr } = require('../utils/date');
 
 function timingSafeSecretEquals(provided, expected) {
   if (!provided || !expected) return false;

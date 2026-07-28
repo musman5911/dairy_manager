@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import type { Cow, MilkEntry, Expense, Sale, HealthRecord, RateHistory } from './types';
 import { fmt, fmtPKR, fmtL, monthLabel } from './utils/format';
 import { calcRevenueWithHistory } from './utils/rates';
+import { todayStr, shiftDate } from './utils/date';
 
 type Color = [number, number, number];
 const TEAL: Color = [13, 148, 136];
@@ -29,9 +30,7 @@ interface ReportCtx {
 /** Filter records by rangeDays relative to today */
 function filterByRange<T extends { date: string }>(records: T[], days?: number): T[] {
   if (!days) return records;
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const cutoffStr = shiftDate(todayStr(), -days);
   return records.filter(r => r.date >= cutoffStr);
 }
 
@@ -108,7 +107,7 @@ export function generateMilkReport(data: ReportCtx) {
   autoTable(doc, {
     startY: y,
     head: [['Total Milk', 'Calf Milk', 'Saleable', 'Revenue', 'Days Recorded']],
-    body: [[fmtL(totalL), fmtL(calfL), fmtL(totalL - calfL), fmtPKR(revenue), String(days)]],
+    body: [[fmtL(totalL), fmtL(calfL), fmtL(Math.max(0, totalL - calfL)), fmtPKR(revenue), String(days)]],
     theme: 'grid',
     headStyles: { fillColor: TEAL, fontSize: 9 },
     bodyStyles: { fontSize: 10, halign: 'center' },
@@ -470,9 +469,7 @@ export function generateCowReport(cowId: string, _rate: number, _rateHistory: Ra
     if (cow.gender !== 'male') {
       y = checkPage(doc, y, 50);
       // Filter milk records by the selected number of days
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - days);
-      const cutoffStr = cutoffDate.toISOString().slice(0, 10);
+      const cutoffStr = shiftDate(todayStr(), -days);
       const filteredMilk = (milk.records30 || []).filter((m: MilkEntry) => m.date >= cutoffStr);
       const filteredMilkTotal = filteredMilk.reduce((a: number, m: MilkEntry) => a + (m.morning || 0) + (m.evening || 0), 0);
 
@@ -499,9 +496,7 @@ export function generateCowReport(cowId: string, _rate: number, _rateHistory: Ra
 
     // ── Expenses (filter by selected days) ─────────────────
     y = checkPage(doc, y, 50);
-    const cutoffDate2 = new Date();
-    cutoffDate2.setDate(cutoffDate2.getDate() - days);
-    const cutoffStr2 = cutoffDate2.toISOString().slice(0, 10);
+    const cutoffStr2 = shiftDate(todayStr(), -days);
     const filteredExp = (expenses.records30 || []).filter((e: Expense) => e.date >= cutoffStr2);
     const filteredExpTotal = filteredExp.reduce((a: number, e: Expense) => a + (e.amount || 0), 0);
 

@@ -3,6 +3,7 @@ import { api } from '../api';
 import type { Cow, MilkEntry, RateHistory } from '../types';
 import { fmt, fmtL, fmtPKR, monthKey, monthLabel, lastNMonths } from '../utils/format';
 import { calcRevenueWithHistory } from '../utils/rates';
+import { todayStr, shiftDate as shiftDateLocal } from '../utils/date';
 import {
   Save, Trash2, History, List,
   ChevronLeft, ChevronRight, Calendar, Baby
@@ -12,12 +13,12 @@ interface MilkTabProps { isAdmin: boolean; canDelete?: boolean; }
 
 export default function MilkTab({ isAdmin, canDelete = isAdmin }: MilkTabProps) {
   const [viewMode, setViewMode] = useState<'daily' | 'history'>('daily');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = useState(todayStr());
   const [cows, setCows] = useState<Cow[]>([]);
   const [milkRecords, setMilkRecords] = useState<MilkEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
-  const [historyMonth, setHistoryMonth] = useState(monthKey(new Date().toISOString().slice(0, 10)));
+  const [historyMonth, setHistoryMonth] = useState(monthKey(todayStr()));
   const [historyCowFilter, setHistoryCowFilter] = useState('');
   const [rate, setRate] = useState(0);
   const [rateDate, setRateDate] = useState('');
@@ -129,9 +130,7 @@ export default function MilkTab({ isAdmin, canDelete = isAdmin }: MilkTabProps) 
   const months = lastNMonths(6);
 
   function shiftDate(days: number) {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() + days);
-    setSelectedDate(d.toISOString().slice(0, 10));
+    setSelectedDate(shiftDateLocal(selectedDate, days));
   }
 
   return (

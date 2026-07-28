@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import type { Cow, HealthRecord, HealthType } from '../types';
+import { todayStr } from '../utils/date';
 import { 
   Plus, 
   Filter, 
@@ -43,7 +44,7 @@ const HealthTab: React.FC<HealthTabProps> = ({ isAdmin, canDelete = isAdmin }) =
   // Form
   const [formData, setFormData] = useState({
     cowId: '',
-    date: new Date().toISOString().split('T')[0],
+    date: todayStr(),
     type: 'checkup' as HealthType,
     description: '',
     medicine: '',
@@ -95,7 +96,7 @@ const HealthTab: React.FC<HealthTabProps> = ({ isAdmin, canDelete = isAdmin }) =
 
       setFormData({
         cowId: '',
-        date: new Date().toISOString().split('T')[0],
+        date: todayStr(),
         type: 'checkup',
         description: '',
         medicine: '',
@@ -323,7 +324,7 @@ const HealthTab: React.FC<HealthTabProps> = ({ isAdmin, canDelete = isAdmin }) =
                       setShowForm(false);
                       setFormData({
                         cowId: '',
-                        date: new Date().toISOString().split('T')[0],
+                        date: todayStr(),
                         type: 'checkup',
                         description: '',
                         medicine: '',
