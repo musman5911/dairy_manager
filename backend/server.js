@@ -1,19 +1,27 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
 const path = require('path');
 const { connectDB } = require('./db');
 
 const app = express();
 
+app.use(helmet());
+
 // CORS — restrict to frontend URL in production, allow all in dev
 const allowedOrigin = process.env.FRONTEND_URL || '*';
+if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL) {
+  console.warn('⚠️ FRONTEND_URL is not set in production; CORS will allow all origins.');
+}
 app.use(cors({
   origin: allowedOrigin,
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
 }));
 app.use(express.json({ limit: '10mb' }));
+app.use(mongoSanitize());
 
 // API Routes
 app.use('/api/auth',     require('./routes/auth'));

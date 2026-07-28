@@ -4,6 +4,7 @@ const { Cow, Milk, Expense, Rate, Health, Buyer, RateHistory, DailyLog, Sale } =
 const { protect, adminOnly } = require('../middleware/auth');
 
 // GET /api/backup — download full database as JSON
+// TODO: For very large farms, consider streaming or chunked backup exports instead of unbounded find() calls.
 router.get('/', protect, adminOnly, async (req, res) => {
   try {
     const [cows, milk, expenses, rates, health, buyers, rateHistory, dailyLogs, sales] = await Promise.all([
