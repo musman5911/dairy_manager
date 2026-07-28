@@ -137,6 +137,7 @@ Express serves the built frontend from `client/dist/` and handles all `/api/*` r
 | `MAIL_FROM` / `SMTP_FROM` | Optional sender address/name    |
 | `APP_URL`     | App URL shown in password reset emails     |
 | `EMAIL_TO`    | Optional daily summary recipient(s)        |
+| `FRONTEND_URL` | Production frontend URL used to restrict CORS, e.g. `https://dairymanager--usman5911.replit.app` |
 
 ---
 
@@ -145,6 +146,10 @@ Express serves the built frontend from `client/dist/` and handles all `/api/*` r
 - `.env` is gitignored and must never be committed. Rotate credentials immediately if they're ever exposed.
 - All write/admin routes are protected via JWT (`protect`) and role checks (`adminOnly`).
 - Passwords are hashed with bcrypt before storage.
+- A broad `/api` rate limiter protects authenticated data routes from leaked-token abuse or accidental script loops.
+- In production, set `FRONTEND_URL` to the live app URL so CORS is restricted instead of falling back to `*`.
+- The Vite dev server uses `allowedHosts: true` for local/Replit preview compatibility only; production is served by Express from `client/dist`.
+- JWTs are stored in `localStorage`; avoid future rich-text/embedded-content features that could introduce XSS without sanitization.
 
 ---
 

@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const { connectDB } = require('./db');
 
@@ -22,6 +23,16 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(mongoSanitize());
+
+// Broad API rate limiter: authenticated data routes still need a safety net in case a token leaks or a script loops.
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  message: { error: 'Too many API requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', apiLimiter);
 
 // API Routes
 app.use('/api/auth',     require('./routes/auth'));
