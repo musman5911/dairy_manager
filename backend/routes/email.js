@@ -17,34 +17,51 @@ async function sendTodaysSummary() {
   const { EMAIL_TO } = process.env;
   if (!EMAIL_TO) throw new Error('EMAIL_TO is not set — add the recipient address(es) in your environment/Secrets.');
 
+  const recipients = EMAIL_TO.split(',').map((s) => s.trim()).filter(Boolean);
+  if (recipients.length === 0) throw new Error('EMAIL_TO is empty — add at least one recipient address.');
+
   const date = todayStr();
   const data = await buildSummaryData(date);
   const html = renderSummaryHtml(data);
 
   await sendMail({
-    to: EMAIL_TO,
+    to: recipients,
     subject: `Dairy Farm Summary — ${date}`,
     html,
     text: `Usman Dairy Farm summary for ${date}. Milk: ${data.totalMilk.toFixed(1)}L, Net today: ₨${data.netToday.toLocaleString()}.`,
   });
 
-  return date;
+  return { date, recipients };
+}
+
+// Mask each address in a comma-separated list individually, e.g.
+// "us***@gmail.com, pa***@gmail.com" instead of mangling the whole string.
+function maskEmailList(emailTo) {
+  if (!emailTo) return null;
+  return emailTo
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((addr) => addr.replace(/(.{2}).+(@.+)/, '$1***$2'))
+    .join(', ');
 }
 
 // GET /api/email/status — lets the frontend show whether email is configured, without exposing secrets
 router.get('/status', protect, async (req, res) => {
   const { EMAIL_TO } = process.env;
+  const recipients = EMAIL_TO ? EMAIL_TO.split(',').map((s) => s.trim()).filter(Boolean) : [];
   res.json({
-    configured: Boolean(mailConfigured() && EMAIL_TO),
-    to: EMAIL_TO ? EMAIL_TO.replace(/(.{2}).+(@.+)/, '$1***$2') : null,
+    configured: Boolean(mailConfigured() && recipients.length > 0),
+    to: maskEmailList(EMAIL_TO),
+    count: recipients.length,
   });
 });
 
 // POST /api/email/send-now — admin-triggered manual send, for testing
 router.post('/send-now', protect, adminOnly, async (req, res) => {
   try {
-    const date = await sendTodaysSummary();
-    res.json({ sent: true, date });
+    const { date, recipients } = await sendTodaysSummary();
+    res.json({ sent: true, date, recipients });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -58,8 +75,8 @@ router.post('/cron', async (req, res) => {
     if (!timingSafeSecretEquals(secret, process.env.CRON_SECRET)) {
       return res.status(401).json({ error: 'Invalid or missing cron secret' });
     }
-    const date = await sendTodaysSummary();
-    res.json({ sent: true, date });
+    const { date, recipients } = await sendTodaysSummary();
+    res.json({ sent: true, date, recipients });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
