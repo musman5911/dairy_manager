@@ -294,8 +294,11 @@ export default function AdminPanel({ username, onClose }: Props) {
   async function handleSendEmail() {
     setSendingEmail(true);
     try {
-      await api.sendSummaryNow();
-      flash('success', 'Summary email sent');
+      const { recipients } = await api.sendSummaryNow();
+      flash(
+        'success',
+        `Summary emailed to ${recipients.length} recipient${recipients.length === 1 ? '' : 's'}: ${recipients.join(', ')}`
+      );
     } catch (err) {
       flash('error', err instanceof Error ? `Send failed: ${err.message}` : 'Send failed');
     } finally {
