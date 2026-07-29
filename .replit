@@ -1,4 +1,5 @@
 modules = ["nodejs-20"]
+run = "bash scripts/replit-run.sh"
 
 [[ports]]
 localPort = 3000
@@ -7,4 +8,4 @@ externalPort = 80
 [deployment]
 deploymentTarget = "autoscale"
 build = ["sh", "-c", "cd client && npm install --include=dev && npm run build"]
-run = ["sh", "-c", "cd backend && npm install && npm start"]
+run = ["sh", "-c", "cd backend && npm install && NODE_ENV=production npm start"]
