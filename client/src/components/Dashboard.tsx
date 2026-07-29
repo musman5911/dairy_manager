@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, Droplets,
-  DollarSign, Hash, AlertCircle, Heart, X, History, PieChart as PieChartIcon, CalendarDays
+  DollarSign, Hash, AlertCircle, Heart, X, History, PieChart as PieChartIcon, CalendarDays,
+  ArrowRight, Eye,
 } from 'lucide-react';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
@@ -11,6 +13,7 @@ import { Cow, MilkEntry, Expense, HealthRecord, Rate, RateHistory } from '../typ
 import { fmt, fmtPKR } from '../utils/format';
 import { calcRevenueWithHistory } from '../utils/rates';
 import { todayStr as getTodayStr, shiftDate } from '../utils/date';
+import { cardSpring, wobbleSpring, staggerDelay, prefersReducedMotion } from '../motion';
 import CowDetailPopup from './CowDetailPopup';
 import ViewportModal from './ViewportModal';
 
@@ -88,11 +91,11 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6 animate-pulse">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map(i => <div key={i} className="h-24 bg-slate-100 dark:bg-slate-800 rounded-xl" />)}
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -260,8 +263,16 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
             <CalendarDays className="w-4 h-4" />
           </button>
 
+          <AnimatePresence>
           {customOpen && (
-            <div className="absolute right-0 top-full mt-2 z-50 w-72 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-xl space-y-3">
+            <motion.div
+              initial={{ height: 0, opacity: 0, y: -4 }}
+              animate={{ height: 'auto', opacity: 1, y: 0 }}
+              exit={{ height: 0, opacity: 0, y: -4 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="absolute right-0 top-full mt-2 z-50 w-72 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl overflow-hidden"
+            >
+            <div className="p-4 space-y-3">
               <h4 className="font-bold text-xs text-slate-800 dark:text-slate-100 uppercase tracking-wider">Custom Range</h4>
               <label className="block space-y-1">
                 <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">From</span>
@@ -276,14 +287,20 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
                 <button type="button" onClick={applyCustomRange} className="px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white">Apply</button>
               </div>
             </div>
+            </motion.div>
           )}
+          </AnimatePresence>
         </div>
       </div>
 
       {/* ── Health Alerts Banner ──────────────── */}
       {data.healthAlerts.length > 0 && (
-        <button onClick={() => setShowAlertsPopup(true)}
-          className="w-full bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl p-3 flex items-center gap-3 hover:bg-amber-100/60 dark:hover:bg-amber-900/20 transition-all duration-200 text-left">
+        <motion.button
+          initial={prefersReducedMotion() ? false : { opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileTap={{ scale: 0.985 }}
+          onClick={() => setShowAlertsPopup(true)}
+          className="group w-full bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl p-3 flex items-center gap-3 hover:bg-amber-100/60 dark:hover:bg-amber-900/20 transition-colors duration-200 text-left">
           <div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-lg shrink-0">
             <AlertCircle className="w-4 h-4 text-amber-600" />
           </div>
@@ -299,25 +316,34 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
               {data.healthAlerts.length > 3 && ` +${data.healthAlerts.length - 3} more`}
             </p>
           </div>
-        </button>
+          <ArrowRight className="w-4 h-4 text-amber-500 shrink-0 opacity-0 group-hover:opacity-100 transition" />
+        </motion.button>
       )}
 
       {/* ── Stats Cards ───────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <button onClick={() => document.getElementById('cow-table')?.scrollIntoView({ behavior: 'smooth' })} className="text-left">
-          <StatCard label="Cows & Bulls" value={String(data.cows.length)} icon={Hash}
-            subText={`🐄 ${cowCount} Cows · 🐂 ${bullCount} Bulls`} />
-        </button>
-        <button onClick={() => setShowMilkPopup(true)} className="text-left">
-          <StatCard label="Milk" value={`${fmt(rangeTotalMilk)}L`} icon={Droplets} subText={rangeLabel} />
-        </button>
-        <button onClick={() => setShowPnlPopup(true)} className="text-left">
-          <StatCard label="Range P&L" value={fmtPKR(profitLoss)} icon={DollarSign}
-            subText={`Rev: ${fmtPKR(rangeRevenue)}`} isNegative={profitLoss < 0} isProfit={profitLoss >= 0} />
-        </button>
-        <button onClick={() => setShowRatePopup(true)} className="text-left">
-          <StatCard label="Rate" value={`₨ ${data.rate?.value || 0}`} icon={DollarSign} subText="/ Litre" />
-        </button>
+        <StaggerItem index={0}>
+          <button onClick={() => document.getElementById('cow-table')?.scrollIntoView({ behavior: 'smooth' })} className="text-left w-full">
+            <StatCard label="Cows & Bulls" value={String(data.cows.length)} icon={Hash}
+              subText={`🐄 ${cowCount} Cows · 🐂 ${bullCount} Bulls`} />
+          </button>
+        </StaggerItem>
+        <StaggerItem index={1}>
+          <button onClick={() => setShowMilkPopup(true)} className="text-left w-full">
+            <StatCard label="Milk" value={`${fmt(rangeTotalMilk)}L`} icon={Droplets} subText={rangeLabel} />
+          </button>
+        </StaggerItem>
+        <StaggerItem index={2}>
+          <button onClick={() => setShowPnlPopup(true)} className="text-left w-full">
+            <StatCard label="Range P&L" value={fmtPKR(profitLoss)} icon={DollarSign}
+              subText={`Rev: ${fmtPKR(rangeRevenue)}`} isNegative={profitLoss < 0} isProfit={profitLoss >= 0} />
+          </button>
+        </StaggerItem>
+        <StaggerItem index={3}>
+          <button onClick={() => setShowRatePopup(true)} className="text-left w-full">
+            <StatCard label="Rate" value={`₨ ${data.rate?.value || 0}`} icon={DollarSign} subText="/ Litre" />
+          </button>
+        </StaggerItem>
       </div>
 
       {/* ── Today's Summary + Expenses ─────────── */}
@@ -490,11 +516,13 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
           </h3>
           <div className="space-y-3">
             {recentActivity.length > 0 ? recentActivity.map((a, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg transition-all duration-200">
-                <span className="text-base shrink-0">{a.icon}</span>
-                <p className={`text-xs font-medium ${a.color} flex-1`}>{a.text}</p>
-                {a.time && <span className="text-[10px] text-slate-400 shrink-0">{a.time}</span>}
-              </div>
+              <StaggerItem key={i} index={i}>
+                <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg transition-colors duration-200">
+                  <span className="text-base shrink-0">{a.icon}</span>
+                  <p className={`text-xs font-medium ${a.color} flex-1`}>{a.text}</p>
+                  {a.time && <span className="text-[10px] text-slate-400 shrink-0">{a.time}</span>}
+                </div>
+              </StaggerItem>
             )) : (
               <p className="text-xs text-slate-400 text-center py-4">No recent activity</p>
             )}
@@ -525,10 +553,11 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
       </div>
 
       {/* ── Popups ──────────────────────────────── */}
-      {selectedCowId && <CowDetailPopup cowId={selectedCowId} rate={data.rate?.value || 0} rateHistory={rateHistory} rateDate={data.rate?.date || ''} onClose={() => setSelectedCowId(null)} />}
+      <AnimatePresence>
+      {selectedCowId && <CowDetailPopup key="cow-detail" cowId={selectedCowId} rate={data.rate?.value || 0} rateHistory={rateHistory} rateDate={data.rate?.date || ''} onClose={() => setSelectedCowId(null)} />}
 
       {showAlertsPopup && (
-        <Popup title={`Health Alerts (${data.healthAlerts.length})`} rangeLabel={rangeLabel} onClose={() => setShowAlertsPopup(false)}>
+        <Popup key="alerts" title={`Health Alerts (${data.healthAlerts.length})`} rangeLabel={rangeLabel} onClose={() => setShowAlertsPopup(false)}>
           <div className="space-y-3">
             {data.healthAlerts.map(alert => {
               const cow = data.cows.find(c => c._id === alert.cowId);
@@ -549,7 +578,7 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
       )}
 
       {showMilkPopup && (
-        <Popup title="Milk Production" rangeLabel={rangeLabel} onClose={() => setShowMilkPopup(false)}>
+        <Popup key="milk" title="Milk Production" rangeLabel={rangeLabel} onClose={() => setShowMilkPopup(false)}>
           <div className="space-y-2">
             {rangeMilkByCow.map(d => (
               <div key={d.cow._id} className="flex items-center justify-between p-3 bg-stone-50 dark:bg-stone-800/50 rounded-lg">
@@ -573,7 +602,7 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
       )}
 
       {showPnlPopup && (
-        <Popup title="Profit & Loss" rangeLabel={rangeLabel} onClose={() => setShowPnlPopup(false)}>
+        <Popup key="pnl" title="Profit & Loss" rangeLabel={rangeLabel} onClose={() => setShowPnlPopup(false)}>
           <div className="space-y-3">
             <div className="flex justify-between items-center p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg">
               <span className="text-xs text-emerald-700 dark:text-emerald-400">Milk Revenue</span>
@@ -593,7 +622,7 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
       )}
 
       {showRatePopup && (
-        <Popup title="Milk Rate History" rangeLabel={rangeLabel} onClose={() => setShowRatePopup(false)}>
+        <Popup key="rate" title="Milk Rate History" rangeLabel={rangeLabel} onClose={() => setShowRatePopup(false)}>
           <div className="flex items-center justify-between p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg mb-3">
             <span className="text-xs text-teal-600 font-medium">Current Rate</span>
             <span className="text-lg font-bold text-teal-700 dark:text-teal-400">{fmtPKR(data.rate?.value || 0)}/L</span>
@@ -611,7 +640,7 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
       )}
 
       {showTopPopup && (
-        <Popup title="Top Producers" rangeLabel={rangeLabel} onClose={() => setShowTopPopup(false)}>
+        <Popup key="top" title="Top Producers" rangeLabel={rangeLabel} onClose={() => setShowTopPopup(false)}>
           <div className="space-y-3">
             {topProducers.map((p, i) => {
               const avg = p.milk / rangeDays;
@@ -640,24 +669,48 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
           </div>
         </Popup>
       )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+/** Staggered list entrance helper — delays each child's fade-up by index * 0.035s (spec §4). */
+function StaggerItem({ index, children, className = '' }: { index: number; children: React.ReactNode; className?: string }) {
+  return (
+    <motion.div
+      initial={prefersReducedMotion() ? false : { opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: 'easeOut', delay: staggerDelay(index) }}
+      className={className}
+    >
+      {children}
+    </motion.div>
   );
 }
 
 function StatCard({ label, value, icon: Icon, trend, trendUnit = '', subText, isNegative, isProfit }: any) {
   const isPositive = trend && trend > 0;
   return (
-    <div className={`group relative overflow-hidden rounded-2xl border bg-white/90 dark:bg-slate-900/90 p-4 shadow-sm backdrop-blur transition-all duration-200 hover:-translate-y-1 hover:shadow-xl ${
+    <motion.div
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.97 }}
+      transition={cardSpring}
+      className={`group relative overflow-hidden rounded-2xl border bg-white/90 dark:bg-slate-900/90 p-4 shadow-sm backdrop-blur transition-colors duration-200 hover:shadow-xl ${
       isProfit === true ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10' :
       isProfit === false ? 'border-rose-200 dark:border-rose-800 bg-rose-50/60 dark:bg-rose-900/10' :
       'border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700'
     }`}>
       <div className="absolute -right-8 -top-8 h-20 w-20 rounded-full bg-emerald-500/10 transition-transform duration-300 group-hover:scale-125" />
+      <Eye className="absolute right-3 bottom-3 w-3.5 h-3.5 text-emerald-500/70 opacity-0 group-hover:opacity-100 transition" />
       <div className="relative flex justify-between items-start mb-4">
         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
-        <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/30 p-2 text-emerald-600 dark:text-emerald-300">
+        <motion.div
+          whileHover={{ rotate: -6, scale: 1.06 }}
+          transition={wobbleSpring}
+          className="rounded-xl bg-emerald-50 dark:bg-emerald-900/30 p-2 text-emerald-600 dark:text-emerald-300"
+        >
           <Icon className="w-4 h-4" />
-        </div>
+        </motion.div>
       </div>
       <div className="relative">
         <div className="flex items-baseline gap-2 flex-wrap">
@@ -671,7 +724,7 @@ function StatCard({ label, value, icon: Icon, trend, trendUnit = '', subText, is
         </div>
         {subText && <p className="text-[11px] text-slate-400 mt-1">{subText}</p>}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -686,9 +739,11 @@ function Popup({ title, rangeLabel, children, onClose }: { title: string; rangeL
           <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">{title}</h3>
           {rangeLabel && <p className="text-[10px] font-mono text-slate-400 mt-0.5">{rangeLabel}</p>}
         </div>
-        <button onClick={onClose} className="hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg p-1 transition-colors"><X className="w-5 h-5 text-slate-400" /></button>
+        <motion.button whileHover={{ rotate: 90 }} whileTap={{ scale: 0.9 }} onClick={onClose} className="hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg p-1 transition-colors"><X className="w-5 h-5 text-slate-400" /></motion.button>
       </div>
-      {children}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25, delay: 0.08 }}>
+        {children}
+      </motion.div>
     </ViewportModal>
   );
 }

@@ -6,7 +6,7 @@ import { calcRevenueWithHistory } from '../utils/rates';
 import { todayStr, shiftDate as shiftDateLocal } from '../utils/date';
 import {
   Save, Trash2, History, List,
-  ChevronLeft, ChevronRight, Calendar, Baby
+  ChevronLeft, ChevronRight, Calendar, Baby, Loader2
 } from 'lucide-react';
 
 interface MilkTabProps { isAdmin: boolean; canDelete?: boolean; }
@@ -134,7 +134,7 @@ export default function MilkTab({ isAdmin, canDelete = isAdmin }: MilkTabProps) 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 tab-panel">
       {/* ── Mode Toggle ────────────────────────── */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
@@ -224,7 +224,7 @@ export default function MilkTab({ isAdmin, canDelete = isAdmin }: MilkTabProps) 
                         {isAdmin && (
                           <button onClick={() => handleSaveRow(cow._id)} disabled={saving === cow._id}
                             className="p-2 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg disabled:opacity-50">
-                            <Save className={`h-4 w-4 ${saving === cow._id ? 'animate-pulse' : ''}`} />
+                            {saving === cow._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                           </button>
                         )}
                       </td>

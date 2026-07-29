@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Eye, EyeOff, Lock, User, AlertCircle, ArrowLeft,
   Mail, KeyRound, Check, LogIn,
 } from 'lucide-react';
 import { api, saveAuth } from '../api';
+import { authCardSpring, prefersReducedMotion } from '../motion';
 
 type View = 'login' | 'forgotEmail' | 'forgotCode';
 
@@ -21,6 +23,7 @@ export default function Login({ onLogin }: { onLogin: (t: string, r: string, u: 
   const [resetCode, setResetCode] = useState('');
   const [resetPassword, setResetPassword] = useState('');
 
+  const reduceMotion = prefersReducedMotion();
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
@@ -123,7 +126,7 @@ export default function Login({ onLogin }: { onLogin: (t: string, r: string, u: 
   if (isSetup === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-slate-50 to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-teal-950">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600" />
       </div>
     );
   }
@@ -133,32 +136,69 @@ export default function Login({ onLogin }: { onLogin: (t: string, r: string, u: 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-teal-50 via-slate-50 to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-teal-950 font-sans text-slate-900 dark:text-slate-100 overflow-hidden relative">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-16 -left-16 w-56 h-56 rounded-full bg-teal-300/20 dark:bg-teal-600/10 blur-3xl animate-float-slow" />
-        <div className="absolute bottom-8 -right-16 w-72 h-72 rounded-full bg-emerald-300/20 dark:bg-emerald-600/10 blur-3xl animate-float-slower" />
-        <div className="absolute top-1/4 right-10 text-6xl opacity-10 animate-float-slow">🐄</div>
+        <motion.div
+          initial={reduceMotion ? false : { opacity: 0, rotate: 0 }}
+          animate={{ opacity: 1, rotate: 12 }}
+          transition={{ duration: 1, delay: 0.1 }}
+          className="absolute -top-16 -left-16 w-56 h-56 rounded-full bg-teal-300/20 dark:bg-teal-600/10 blur-3xl"
+        />
+        <motion.div
+          initial={reduceMotion ? false : { opacity: 0, rotate: 0 }}
+          animate={{ opacity: 1, rotate: -12 }}
+          transition={{ duration: 1, delay: 0.2 }}
+          className="absolute bottom-8 -right-16 w-72 h-72 rounded-full bg-emerald-300/20 dark:bg-emerald-600/10 blur-3xl"
+        />
+        <motion.div
+          initial={reduceMotion ? false : { opacity: 0, rotate: 0 }}
+          animate={{ opacity: 0.3, rotate: 45 }}
+          transition={{ duration: 1, delay: 0.3 }}
+          className="absolute top-1/4 right-10 text-6xl"
+        >
+          🐄
+        </motion.div>
       </div>
 
-      <header className="fixed top-0 left-0 right-0 h-14 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-800 shadow-sm flex items-center px-4 z-10 animate-slide-down">
+      <motion.header
+        initial={reduceMotion ? false : { y: -14, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.22, ease: 'easeOut' }}
+        className="fixed top-0 left-0 right-0 h-14 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-800 shadow-sm flex items-center px-4 z-10"
+      >
         <div className="flex items-center gap-3">
           <img
   src="/dairy-farm-logo-round-512.png"
   alt="Usman Dairy Farm logo"
-  className="w-9 h-9 rounded-full object-cover border border-emerald-100 dark:border-emerald-900 bg-white shadow-inner animate-pulse-glow"
+  className="w-9 h-9 rounded-full object-cover border border-emerald-100 dark:border-emerald-900 bg-white shadow-inner"
 />
           <div>
             <h1 className="text-sm font-bold leading-tight">Usman Dairy Farm</h1>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight uppercase tracking-wider font-medium">Management System</p>
           </div>
         </div>
-      </header>
+      </motion.header>
 
       <main className="flex-1 flex flex-col items-center justify-center p-4 pt-20">
-        <div className="w-full max-w-sm relative z-10 animate-tab-in">
+        <motion.div
+          initial={reduceMotion ? false : { y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={authCardSpring}
+          className="w-full max-w-sm relative z-10"
+        >
           <div className="mb-6 text-center">
-            <h2 className="text-xl font-bold mb-1">
+            <motion.h2
+              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, ease: 'easeOut', delay: 0.3 }}
+              className="text-xl font-bold mb-1"
+            >
               {isFirstSetup ? 'Initial Setup' : view === 'login' ? 'Welcome back' : view === 'forgotEmail' ? 'Reset password' : 'Enter verification code'}
-            </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            </motion.h2>
+            <motion.p
+              initial={reduceMotion ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.25, delay: 0.4 }}
+              className="text-sm text-slate-500 dark:text-slate-400"
+            >
               {isFirstSetup
                 ? 'Create the first administrator account to get started.'
                 : view === 'login'
@@ -166,19 +206,29 @@ export default function Login({ onLogin }: { onLogin: (t: string, r: string, u: 
                   : view === 'forgotEmail'
                     ? 'Enter your admin email to receive a 6-digit code.'
                     : `A reset code was sent to ${resetEmail}.`}
-            </p>
+            </motion.p>
           </div>
 
-          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl shadow-emerald-900/10 overflow-hidden animate-scale-in">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl shadow-emerald-900/10 overflow-hidden">
             <div className="relative overflow-hidden bg-gradient-to-br from-emerald-600 to-teal-600 p-7 text-center text-white">
-              <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/10 blur-xl animate-float-slow" />
-              <div className="relative mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-white/20 p-1.5 shadow-lg animate-pop-in">
+              <motion.div
+                initial={reduceMotion ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 1, delay: 0.1 }}
+                className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/10 blur-xl"
+              />
+              <motion.div
+                initial={reduceMotion ? false : { scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.2 }}
+                className="relative mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-white/20 p-1.5 shadow-lg"
+              >
   <img
     src="/dairy-farm-logo-round-512.png"
     alt="Usman Dairy Farm logo"
     className="h-full w-full rounded-full object-cover bg-white"
   />
-</div>
+</motion.div>
               <h1 className="relative font-display text-2xl font-bold tracking-tight">Usman Dairy Farm</h1>
               <p className="relative mt-1 text-sm text-emerald-50">Dairy Management</p>
             </div>
@@ -186,8 +236,17 @@ export default function Login({ onLogin }: { onLogin: (t: string, r: string, u: 
             {error && <Message type="error" text={error} />}
             {info && <Message type="success" text={info} />}
 
+            <AnimatePresence mode="wait" initial={false}>
             {view === 'login' && (
-              <form className="space-y-4 animate-slide-up" onSubmit={handleSubmit}>
+              <motion.form
+                key="login"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-4"
+                onSubmit={handleSubmit}
+              >
                 <Field label={isFirstSetup ? 'Username' : 'Username or email'}>
                   <IconInput icon={<User className="h-4 w-4" />}>
                     <input
@@ -222,7 +281,7 @@ export default function Login({ onLogin }: { onLogin: (t: string, r: string, u: 
                     type="button"
                     onClick={() => goTo('forgotEmail')}
                     title={mailConfigured ? 'Reset password by email' : 'SMTP is not configured yet'}
-                    className="text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 font-semibold inline-flex items-center gap-1 animate-soft-pulse"
+                    className="text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 font-semibold inline-flex items-center gap-1"
                   >
                     <KeyRound className="w-3.5 h-3.5" /> Forgot password?
                   </button>
@@ -254,11 +313,19 @@ export default function Login({ onLogin }: { onLogin: (t: string, r: string, u: 
                 >
                   {loading ? 'Processing...' : <><LogIn className="w-4 h-4" />{isFirstSetup ? 'Complete Setup' : 'Sign In'}</>}
                 </button>
-              </form>
+              </motion.form>
             )}
 
             {view === 'forgotEmail' && (
-              <form className="space-y-4 animate-slide-up" onSubmit={handleForgotRequest}>
+              <motion.form
+                key="forgotEmail"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-4"
+                onSubmit={handleForgotRequest}
+              >
                 <BackButton onClick={() => goTo('login')} />
                 {!mailConfigured && (
                   <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-xs p-3">
@@ -281,11 +348,19 @@ export default function Login({ onLogin }: { onLogin: (t: string, r: string, u: 
                 <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 disabled:opacity-50 text-white rounded-xl px-4 py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2">
                   {loading ? 'Sending...' : <><Mail className="w-4 h-4" /> Send reset code</>}
                 </button>
-              </form>
+              </motion.form>
             )}
 
             {view === 'forgotCode' && (
-              <form className="space-y-4 animate-slide-up" onSubmit={handleResetPassword}>
+              <motion.form
+                key="forgotCode"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-4"
+                onSubmit={handleResetPassword}
+              >
                 <BackButton onClick={() => goTo('forgotEmail')} />
                 <Field label="6-digit code">
                   <input
@@ -316,11 +391,12 @@ export default function Login({ onLogin }: { onLogin: (t: string, r: string, u: 
                 <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 disabled:opacity-50 text-white rounded-xl px-4 py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2">
                   {loading ? 'Resetting...' : <><Check className="w-4 h-4" /> Reset password</>}
                 </button>
-              </form>
+              </motion.form>
             )}
+            </AnimatePresence>
             </div>
           </div>
-        </div>
+        </motion.div>
       </main>
 
       <footer className="py-6 text-center relative z-10">

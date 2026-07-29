@@ -133,7 +133,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ isAdmin, canDelete = isAdmin 
   expenses.forEach(e => { expByType[e.type] = (expByType[e.type] || 0) + e.amount; });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 tab-panel">
       {/* Summary + Category Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">

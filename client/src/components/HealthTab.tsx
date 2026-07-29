@@ -143,7 +143,7 @@ const HealthTab: React.FC<HealthTabProps> = ({ isAdmin, canDelete = isAdmin }) =
   const isOverdue = (date: string) => new Date(date) < new Date();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 tab-panel">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Stats Card */}
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 flex flex-col justify-between">

@@ -6,6 +6,7 @@ import {
   Plus, Edit2, Trash2, X, Save,
   CheckCircle2, Info, Tag, Activity, Banknote, Baby
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import ViewportModal from './ViewportModal';
 
 interface CowsTabProps {
@@ -175,7 +176,7 @@ export default function CowsTab({ isAdmin }: CowsTabProps) {
   const activeMothers = cows.filter(c => (c.status === 'active' || c.status === 'dry') && c.gender !== 'male');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 tab-panel">
       {/* ── Clickable Stat Cards ──────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
         {statCards.map((card) => {
@@ -366,6 +367,7 @@ export default function CowsTab({ isAdmin }: CowsTabProps) {
       </div>
 
       {/* ── Sale Modal ────────────────────────── */}
+      <AnimatePresence>
       {saleCow && (
         <ViewportModal
           onClose={() => setSaleCow(null)}
@@ -373,7 +375,7 @@ export default function CowsTab({ isAdmin }: CowsTabProps) {
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Record Sale — {saleCow.name} {saleCow.gender === 'male' ? '🐂' : '🐄'}</h3>
-            <button onClick={() => setSaleCow(null)}><X className="h-5 w-5 text-slate-400" /></button>
+            <motion.button whileHover={{ rotate: 90 }} whileTap={{ scale: 0.9 }} onClick={() => setSaleCow(null)}><X className="h-5 w-5 text-slate-400" /></motion.button>
           </div>
           <form onSubmit={handleRecordSale} className="space-y-4">
             <Field label="Sale Date *" children={<input required type="date" className="inp" value={saleForm.date} onChange={e => setSaleForm({ ...saleForm, date: e.target.value })} />} />
@@ -387,6 +389,7 @@ export default function CowsTab({ isAdmin }: CowsTabProps) {
           </form>
         </ViewportModal>
       )}
+      </AnimatePresence>
 
       <style>{`.inp{width:100%;border:1px solid #e2e8f0;border-radius:0.5rem;padding:0.5rem 0.75rem;font-size:0.875rem;background:white;outline:none}.inp:focus{border-color:#14b8a6}.dark .inp{background:#0f172a;border-color:#334155;color:#e2e8f0}`}</style>
     </div>

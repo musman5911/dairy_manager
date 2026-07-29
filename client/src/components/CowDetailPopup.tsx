@@ -6,6 +6,7 @@ import type { Cow, MilkEntry, Expense, HealthRecord, RateHistory } from '../type
 import { fmt, fmtPKR, fmtL } from '../utils/format';
 import { calcRevenueWithHistory } from '../utils/rates';
 import { todayStr, shiftDate } from '../utils/date';
+import { motion } from 'framer-motion';
 import ViewportModal from './ViewportModal';
 
 interface CowSummary {
@@ -74,12 +75,12 @@ export default function CowDetailPopup({ cowId, rate, rateHistory = [], rateDate
               <p className="text-xs text-slate-500">{cow.breed} · {cow.status} · Lact #{cow.lactationNumber || 0}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+          <motion.button whileHover={{ rotate: 90 }} whileTap={{ scale: 0.9 }} onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
             <X className="w-5 h-5 text-slate-400" />
-          </button>
+          </motion.button>
         </div>
 
-        <div className="p-5 space-y-6">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25, delay: 0.08 }} className="p-5 space-y-6">
           {/* ── Lifetime Profit (Sold Cows) ───────── */}
           {cow.status === 'sold' && data.lifetime && (
             <div className="bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 rounded-lg p-4">
@@ -219,7 +220,7 @@ export default function CowDetailPopup({ cowId, rate, rateHistory = [], rateDate
               <p className="text-sm text-slate-400">No health records</p>
             )}
           </div>
-        </div>
+        </motion.div>
     </ViewportModal>
   );
 }

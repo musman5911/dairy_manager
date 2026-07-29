@@ -75,7 +75,7 @@ export default function DiaryTab() {
   const doneCount = checklist.filter(i => i.done).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 tab-panel">
       {/* Date navigation + save status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">

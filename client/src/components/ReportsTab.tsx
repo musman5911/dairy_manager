@@ -18,6 +18,7 @@ import { fmt, fmtPKR, fmtL, monthKey, monthLabel, lastNMonths } from '../utils/f
 import { calcRevenueWithHistory } from '../utils/rates';
 import { todayStr, shiftDate } from '../utils/date';
 import { generateMilkReport, generateExpenseReport, generateSummaryReport, generateCowReport } from '../reportExport';
+import { AnimatePresence } from 'framer-motion';
 import ViewportModal from './ViewportModal';
 
 function exportRangeLabel(days: number): string {
@@ -222,7 +223,7 @@ export default function ReportsTab() {
   }
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-12 tab-panel">
       {/* ── Month/Range Selector ────────────────────────────────── */}
       <div className="flex items-center gap-3">
         <Calendar className="w-4 h-4 text-slate-400" />
@@ -508,6 +509,7 @@ function ExportButton({ label, color: _color, onGenerate }: { label: string; col
           </button>
         </div>
       </div>
+      <AnimatePresence>
       {showConfirm && (
         <ViewportModal
           onClose={() => setShowConfirm(false)}
@@ -523,6 +525,7 @@ function ExportButton({ label, color: _color, onGenerate }: { label: string; col
           </div>
         </ViewportModal>
       )}
+      </AnimatePresence>
     </>
   );
 }
@@ -584,6 +587,7 @@ function CowReportButton({ cows, rate, rateHistory, rateDate }: { cows: Cow[]; r
       </div>
 
       {/* Confirm Dialog */}
+      <AnimatePresence>
       {showConfirm && (
         <ViewportModal
           onClose={() => setShowConfirm(false)}
@@ -601,6 +605,7 @@ function CowReportButton({ cows, rate, rateHistory, rateDate }: { cows: Cow[]; r
           </div>
         </ViewportModal>
       )}
+      </AnimatePresence>
     </>
   );
 }
