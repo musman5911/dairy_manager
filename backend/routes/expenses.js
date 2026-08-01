@@ -1,6 +1,6 @@
 const { randomUUID } = require('crypto');
 const router = require('express').Router();
-const { Expense } = require('../db');
+const { Expense, Health, Cow } = require('../db');
 const { protect, adminOnly, workerOrAdmin } = require('../middleware/auth');
 const {
   readString,
@@ -61,13 +61,33 @@ router.put('/:id', protect, workerOrAdmin, async (req, res) => {
     if (errors.length) return sendValidationError(res, errors);
     const exp = await Expense.findByIdAndUpdate(req.params.id, { $set: payload }, { new: true });
     if (!exp) return res.status(404).json({ error: 'Not found' });
+
+    // Sync back to health records or cow if there is an association
+    if (exp._healthId && payload.amount !== undefined) {
+      await Health.findByIdAndUpdate(exp._healthId, { $set: { cost: payload.amount } });
+    }
+    if (exp._purchaseCowId && payload.amount !== undefined) {
+      await Cow.findByIdAndUpdate(exp._purchaseCowId, { $set: { purchasePrice: payload.amount } });
+    }
+
     res.json(exp);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.delete('/:id', protect, adminOnly, async (req, res) => {
   try {
-    await Expense.findByIdAndDelete(req.params.id);
+    const exp = await Expense.findById(req.params.id);
+    if (!exp) return res.status(404).json({ error: 'Not found' });
+
+    // Sync back to health records or cow before deleting the expense
+    if (exp._healthId) {
+      await Health.findByIdAndUpdate(exp._healthId, { $set: { cost: 0 } });
+    }
+    if (exp._purchaseCowId) {
+      await Cow.findByIdAndUpdate(exp._purchaseCowId, { $set: { purchasePrice: 0 } });
+    }
+
+    await exp.deleteOne();
     res.json({ deleted: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

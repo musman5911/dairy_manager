@@ -183,12 +183,41 @@ router.put('/:id', protect, adminOnly, async (req, res) => {
     if (errors.length) return sendValidationError(res, errors);
     const cow = await Cow.findByIdAndUpdate(req.params.id, { $set: payload }, { new: true });
     if (!cow) return res.status(404).json({ error: 'Not found' });
+
+    // Sync purchasing expense
+    const existingExp = await Expense.findOne({ _purchaseCowId: req.params.id });
+    const targetPrice = payload.purchasePrice !== undefined ? payload.purchasePrice : cow.purchasePrice;
+    
+    if (targetPrice && targetPrice > 0) {
+      const isCalf = cow.isCalf ? ' (calf)' : '';
+      const expenseNote = `Purchased ${cow.name}${isCalf} — ${cow.breed}`;
+      if (existingExp) {
+        existingExp.amount = targetPrice;
+        existingExp.note = expenseNote;
+        await existingExp.save();
+      } else {
+        await Expense.create({
+          _id: randomUUID(),
+          cowId: req.params.id,
+          date: cow.birthDate || todayStr(),
+          type: 'purchasing',
+          amount: targetPrice,
+          note: expenseNote,
+          _purchaseCowId: req.params.id,
+        });
+      }
+    } else if (existingExp) {
+      await existingExp.deleteOne();
+    }
+
     res.json(cow);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.delete('/:id', protect, adminOnly, async (req, res) => {
   try {
+    // Delete linked purchase expense if exists
+    await Expense.deleteOne({ _purchaseCowId: req.params.id });
     await Cow.findByIdAndDelete(req.params.id);
     res.json({ deleted: true });
   } catch (e) { res.status(500).json({ error: e.message }); }

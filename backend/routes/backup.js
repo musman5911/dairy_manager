@@ -61,9 +61,11 @@ router.post('/restore', protect, adminOnly, async (req, res) => {
     await session.withTransaction(async () => {
       for (const [key, Model] of Object.entries(COLLECTIONS)) {
         const data = payload[key];
-        if (data?.length) {
+        if (data !== undefined && Array.isArray(data)) {
           await Model.deleteMany({}, { session });
-          await Model.insertMany(data, { session });
+          if (data.length > 0) {
+            await Model.insertMany(data, { session });
+          }
         }
       }
     });

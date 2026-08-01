@@ -88,7 +88,7 @@ export default function CowDetailPopup({ cowId, rate, rateHistory = [], rateDate
               {(() => {
                 const l = data.lifetime;
                 const milkRev = calcRevenueWithHistory(l.milkRecords || [], rateHistory, rate, rateDate);
-                const totalCost = l.purchasePrice + l.totalHealthCost + l.totalDirectExpenses;
+                const totalCost = l.purchasePrice + l.totalDirectExpenses;
                 const totalIncome = l.salePrice + milkRev;
                 const profit = totalIncome - totalCost;
                 return (

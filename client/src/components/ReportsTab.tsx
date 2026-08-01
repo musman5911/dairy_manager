@@ -13,7 +13,7 @@ import {
   Tooltip,
 } from 'recharts';
 import { api } from '../api';
-import type { Cow, MilkEntry, Expense, ExpenseType, Rate, Sale, RateHistory } from '../types';
+import type { Cow, MilkEntry, Expense, ExpenseType, Rate, Sale, RateHistory, Buyer } from '../types';
 import { fmt, fmtPKR, fmtL, monthKey, monthLabel, lastNMonths } from '../utils/format';
 import { calcRevenueWithHistory } from '../utils/rates';
 import { todayStr, shiftDate } from '../utils/date';
@@ -61,6 +61,7 @@ export default function ReportsTab() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [rate, setRate] = useState<Rate | null>(null);
   const [rateHistory, setRateHistory] = useState<RateHistory[]>([]);
+  const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(monthKey(todayStr()));
 
@@ -70,13 +71,14 @@ export default function ReportsTab() {
         setLoading(true);
         const from = shiftDate(todayStr(), -365);
 
-        const [cowsData, milkData, expensesData, rateData, salesData, rateHist] = await Promise.all([
+        const [cowsData, milkData, expensesData, rateData, salesData, rateHist, buyersData] = await Promise.all([
           api.getCows(),
           api.getMilk({ from }),
           api.getExpenses({ from }),
           api.getRate(),
           api.getSales({ from }),
           api.getRateHistory(),
+          api.getBuyers(),
         ]);
 
         setCows(cowsData);
@@ -85,6 +87,7 @@ export default function ReportsTab() {
         setRate(rateData);
         setSales(salesData);
         setRateHistory(rateHist);
+        setBuyers(buyersData);
       } catch (error) {
         console.error('Failed to fetch report data:', error);
       } finally {
@@ -99,6 +102,8 @@ export default function ReportsTab() {
   const currentRate = rate?.value || 0;
   const months = lastNMonths(12);
   const thisMonth = months[months.length - 1];
+
+  const buyerRates = Object.fromEntries(buyers.map(b => [b._id, b.defaultRate || 0]));
 
   // Range options
   const rangeOptions = [
@@ -119,19 +124,21 @@ export default function ReportsTab() {
 
     const milkL = mkMilk.reduce((a, m) => a + (m.morning || 0) + (m.evening || 0), 0);
     const calfMilk = mkMilk.reduce((a, m) => a + (m.calfMilk || 0), 0);
-    const milkRevenue = calcRevenueWithHistory(mkMilk, rateHistory, currentRate, rate?.date || '');
+    const milkRevenue = calcRevenueWithHistory(mkMilk, rateHistory, currentRate, rate?.date || '', buyerRates);
     const saleIncome = mkSales.reduce((a, s) => a + (s.salePrice || 0), 0);
     const totalExp = mkExp.reduce((a, e) => a + (e.amount || 0), 0);
+    const purchasingCost = mkExp.filter(e => e.type === 'purchasing').reduce((a, e) => a + (e.amount || 0), 0);
+    const operatingExpenses = totalExp - purchasingCost;
 
     const expByType: Record<string, number> = {};
     mkExp.forEach(e => { expByType[e.type] = (expByType[e.type] || 0) + (e.amount || 0); });
 
-    // Operating profit = milk revenue - expenses (excludes one-time animal sales)
-    const operatingProfit = milkRevenue - totalExp;
-    // Total profit includes sales (one-time income)
-    const totalProfit = operatingProfit + saleIncome;
+    // Operating profit = milk revenue - operating expenses (excludes one-time animal purchases & sales)
+    const operatingProfit = milkRevenue - operatingExpenses;
+    // Total profit includes sales and purchases (one-time items)
+    const totalProfit = operatingProfit + saleIncome - purchasingCost;
 
-    return { milkL, calfMilk, milkRevenue, saleIncome, totalExp, operatingProfit, totalProfit, expByType, sales: mkSales };
+    return { milkL, calfMilk, milkRevenue, saleIncome, totalExp, purchasingCost, operatingProfit, totalProfit, expByType, sales: mkSales };
   }
 
   const currentStats = getMonthStats(thisMonth);
@@ -143,15 +150,17 @@ export default function ReportsTab() {
     const milkRevenue = mks.reduce((a, mk) => a + getMonthStats(mk).milkRevenue, 0);
     const saleIncome = mks.reduce((a, mk) => a + getMonthStats(mk).saleIncome, 0);
     const totalExp = mks.reduce((a, mk) => a + getMonthStats(mk).totalExp, 0);
-    const operatingProfit = milkRevenue - totalExp;
-    const totalProfit = operatingProfit + saleIncome;
+    const purchasingCost = mks.reduce((a, mk) => a + getMonthStats(mk).purchasingCost, 0);
+    const operatingExpenses = totalExp - purchasingCost;
+    const operatingProfit = milkRevenue - operatingExpenses;
+    const totalProfit = operatingProfit + saleIncome - purchasingCost;
     const expByType: Record<string, number> = {};
     mks.forEach(mk => {
       const s = getMonthStats(mk);
       Object.entries(s.expByType).forEach(([k, v]) => { expByType[k] = (expByType[k] || 0) + v; });
     });
     const salesList = mks.flatMap(mk => getMonthStats(mk).sales);
-    return { milkL, calfMilk, milkRevenue, saleIncome, totalExp, operatingProfit, totalProfit, expByType, sales: salesList };
+    return { milkL, calfMilk, milkRevenue, saleIncome, totalExp, purchasingCost, operatingProfit, totalProfit, expByType, sales: salesList };
   }
   const selectedStats = isRange ? getRangeStats(rangeMonthKeys) : getMonthStats(selectedMonth);
 
@@ -169,10 +178,10 @@ export default function ReportsTab() {
   const selectedExpenses = expenses.filter(e => rangeMonthKeys.includes(monthKey(e.date)));
   const selectedSales = sales.filter(s => rangeMonthKeys.includes(monthKey(s.date)));
 
-  const costPerAnimal: CostAnimal[] = cows.filter(c => c.status !== 'sold').map(cow => {
+  const costPerAnimal: CostAnimal[] = cows.map(cow => {
     const cowMilkRecords = selectedMilk.filter(m => m.cowId === cow._id);
     const cowMilk = cowMilkRecords.reduce((a, m) => a + (m.morning || 0) + (m.evening || 0), 0);
-    const cowRevenue = calcRevenueWithHistory(cowMilkRecords, rateHistory, currentRate, rate?.date || '');
+    const cowRevenue = calcRevenueWithHistory(cowMilkRecords, rateHistory, currentRate, rate?.date || '', buyerRates);
     const directExpenses = selectedExpenses.filter(e => e.cowId === cow._id && DIRECT_EXPENSE_TYPES.includes(e.type));
     const cowExp = directExpenses.reduce((a, e) => a + (e.amount || 0), 0);
     const cowFeed = directExpenses.filter(e => e.type === 'feed').reduce((a, e) => a + (e.amount || 0), 0);
@@ -189,6 +198,10 @@ export default function ReportsTab() {
       saleIncome: cowSales,
       net: cowRevenue + cowSales - cowExp - cowPurchase,
     };
+  }).filter(cow => {
+    // Show non-sold animals always, and sold animals only if they have activity in this period.
+    if (cow.status !== 'sold') return true;
+    return cow.milkL > 0 || cow.expenses > 0 || cow.purchaseInMonth > 0 || cow.saleIncome > 0;
   }).sort((a, b) => b.milkL - a.milkL);
 
   // Farm-wide expenses (no cowId assigned)
@@ -259,12 +272,15 @@ export default function ReportsTab() {
           <MiniStat label="Milk Revenue" value={fmtPKR(currentStats.milkRevenue)} />
           <MiniStat label="Expenses" value={fmtPKR(currentStats.totalExp)} />
           <MiniStat label="Operating Profit" value={fmtPKR(currentStats.operatingProfit)} highlight={currentStats.operatingProfit >= 0} />
+          {currentStats.purchasingCost > 0 && (
+            <MiniStat label="Animal Purchases" value={fmtPKR(currentStats.purchasingCost)} />
+          )}
           {currentStats.saleIncome > 0 && (
             <MiniStat label="Animal Sales" value={fmtPKR(currentStats.saleIncome)} />
           )}
           <MiniStat label="Total Profit" value={fmtPKR(currentStats.totalProfit)} highlight={currentStats.totalProfit >= 0} />
         </div>
-        <p className="text-[10px] opacity-70 mt-2">* Operating Profit = Milk Revenue − Expenses | Total Profit includes animal sales</p>
+        <p className="text-[10px] opacity-70 mt-2">* Operating Profit = Milk Revenue − Operating Expenses (excl. Purchases) | Total Profit includes animal sales & purchases</p>
       </div>
 
       {/* ── Selected Month/Range Stats ──────────────────────────── */}
@@ -276,6 +292,9 @@ export default function ReportsTab() {
             <MiniStatDark label="Milk Revenue" value={fmtPKR(selectedStats.milkRevenue)} />
             <MiniStatDark label="Expenses" value={fmtPKR(selectedStats.totalExp)} />
             <MiniStatDark label="Operating Profit" value={fmtPKR(selectedStats.operatingProfit)} positive={selectedStats.operatingProfit >= 0} />
+            {selectedStats.purchasingCost > 0 && (
+              <MiniStatDark label="Animal Purchases" value={fmtPKR(selectedStats.purchasingCost)} />
+            )}
             {selectedStats.saleIncome > 0 && (
               <MiniStatDark label="Animal Sales" value={fmtPKR(selectedStats.saleIncome)} />
             )}
@@ -454,17 +473,17 @@ export default function ReportsTab() {
           <ExportButton
             label="Milk Report"
             color="stone"
-            onGenerate={(rangeDays) => generateMilkReport({ month: selectedMonth, rangeLabel: exportRangeLabel(rangeDays), rangeDays, cows, milkEntries: selectedMilk, expenses: selectedExpenses, sales: selectedSales, rate: currentRate, rateHistory, rateDate: rate?.date || '', costPerAnimal })}
+            onGenerate={(rangeDays) => generateMilkReport({ month: selectedMonth, rangeLabel: exportRangeLabel(rangeDays), rangeDays, cows, milkEntries: selectedMilk, expenses: selectedExpenses, sales: selectedSales, rate: currentRate, rateHistory, rateDate: rate?.date || '', buyerRates, costPerAnimal })}
           />
           <ExportButton
             label="Expense Report"
             color="stone"
-            onGenerate={(rangeDays) => generateExpenseReport({ month: selectedMonth, rangeLabel: exportRangeLabel(rangeDays), rangeDays, cows, milkEntries: selectedMilk, expenses: selectedExpenses, sales: selectedSales, rate: currentRate, rateHistory, rateDate: rate?.date || '', costPerAnimal })}
+            onGenerate={(rangeDays) => generateExpenseReport({ month: selectedMonth, rangeLabel: exportRangeLabel(rangeDays), rangeDays, cows, milkEntries: selectedMilk, expenses: selectedExpenses, sales: selectedSales, rate: currentRate, rateHistory, rateDate: rate?.date || '', buyerRates, costPerAnimal })}
           />
           <ExportButton
             label="Monthly Summary"
             color="stone"
-            onGenerate={(rangeDays) => generateSummaryReport({ month: selectedMonth, rangeLabel: exportRangeLabel(rangeDays), rangeDays, cows, milkEntries: selectedMilk, expenses: selectedExpenses, sales: selectedSales, rate: currentRate, rateHistory, rateDate: rate?.date || '', costPerAnimal, stats: selectedStats })}
+            onGenerate={(rangeDays) => generateSummaryReport({ month: selectedMonth, rangeLabel: exportRangeLabel(rangeDays), rangeDays, cows, milkEntries: selectedMilk, expenses: selectedExpenses, sales: selectedSales, rate: currentRate, rateHistory, rateDate: rate?.date || '', buyerRates, costPerAnimal, stats: selectedStats })}
           />
           <CowReportButton cows={cows} rate={currentRate} rateHistory={rateHistory} rateDate={rate?.date || ''} />
         </div>

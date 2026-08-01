@@ -1,8 +1,8 @@
-const { Cow, Milk, Expense, Rate, Health, Sale, DailyLog } = require('../db');
+const { Cow, Milk, Expense, Rate, Health, Sale, DailyLog, Buyer } = require('../db');
 const { logoUrl } = require('../utils/mailer');
 
 async function buildSummaryData(dateStr) {
-  const [cows, milkToday, expensesToday, rate, healthAll, salesToday, log] = await Promise.all([
+  const [cows, milkToday, expensesToday, rate, healthAll, salesToday, log, buyers] = await Promise.all([
     Cow.find(),
     Milk.find({ date: dateStr }),
     Expense.find({ date: dateStr }),
@@ -10,11 +10,21 @@ async function buildSummaryData(dateStr) {
     Health.find({ nextDueDate: { $exists: true, $ne: '' } }),
     Sale.find({ date: dateStr }),
     DailyLog.findById(dateStr),
+    Buyer.find(),
   ]);
 
-  const totalMilk = milkToday.reduce((a, m) => a + Math.max(0, (m.morning || 0) + (m.evening || 0) - (m.calfMilk || 0)), 0);
+  const buyerRates = Object.fromEntries(buyers.map(b => [b._id, b.defaultRate || 0]));
+
   const currentRate = rate?.value || 0;
-  const milkRevenue = totalMilk * currentRate;
+  let milkRevenue = 0;
+  for (const m of milkToday) {
+    const bRate = m.buyerId && buyerRates[m.buyerId] ? buyerRates[m.buyerId] : 0;
+    const activeRate = (bRate && bRate > 0) ? bRate : currentRate;
+    const saleableLiters = Math.max(0, (m.morning || 0) + (m.evening || 0) - (m.calfMilk || 0));
+    milkRevenue += saleableLiters * activeRate;
+  }
+
+  const totalMilk = milkToday.reduce((a, m) => a + Math.max(0, (m.morning || 0) + (m.evening || 0) - (m.calfMilk || 0)), 0);
   const totalExpenses = expensesToday.reduce((a, e) => a + (e.amount || 0), 0);
   const saleIncome = salesToday.reduce((a, s) => a + (s.salePrice || 0), 0);
   const netToday = milkRevenue + saleIncome - totalExpenses;
