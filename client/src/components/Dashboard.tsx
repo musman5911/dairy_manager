@@ -9,7 +9,7 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
 } from 'recharts';
 import { api } from '../api';
-import { Cow, MilkEntry, Expense, HealthRecord, Rate, RateHistory } from '../types';
+import { Cow, MilkEntry, Expense, HealthRecord, Rate, RateHistory, Sale, Buyer } from '../types';
 import { fmt, fmtPKR } from '../utils/format';
 import { calcRevenueWithHistory } from '../utils/rates';
 import { todayStr as getTodayStr, shiftDate } from '../utils/date';
@@ -54,19 +54,21 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
     cows: Cow[];
     milk: MilkEntry[];
     expenses: Expense[];
+    sales: Sale[];
+    buyers: Buyer[];
     rate: Rate | null;
     healthAlerts: HealthRecord[];
     allHealth: HealthRecord[];
     todayMilk: MilkEntry[];
     todayExpenses: Expense[];
-  }>({ cows: [], milk: [], expenses: [], rate: null, healthAlerts: [], allHealth: [], todayMilk: [], todayExpenses: [] });
+  }>({ cows: [], milk: [], expenses: [], sales: [], buyers: [], rate: null, healthAlerts: [], allHealth: [], todayMilk: [], todayExpenses: [] });
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
         const today = getTodayStr();
-        const [cows, milk, expenses, rate, healthAlerts, rateHist, allHealth, todayMilk, todayExpenses] = await Promise.all([
+        const [cows, milk, expenses, rate, healthAlerts, rateHist, allHealth, todayMilk, todayExpenses, sales, buyers] = await Promise.all([
           api.getCows(),
           api.getMilk({ from: rangeFrom, to: rangeTo }),
           api.getExpenses({ from: rangeFrom, to: rangeTo }),
@@ -76,8 +78,10 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
           api.getHealth(),
           api.getMilk({ from: today, to: today }),
           api.getExpenses({ from: today, to: today }),
+          api.getSales({ from: rangeFrom, to: rangeTo }),
+          api.getBuyers(),
         ]);
-        setData({ cows, milk, expenses, rate, healthAlerts, allHealth, todayMilk, todayExpenses });
+        setData({ cows, milk, expenses, sales, buyers, rate, healthAlerts, allHealth, todayMilk, todayExpenses });
         setRateHistory(rateHist);
       } catch (err) {
         console.error('Failed to fetch dashboard data:', err);
@@ -135,9 +139,16 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
   const todayMilk = Math.round(data.todayMilk.reduce((a, c) => a + c.morning + c.evening, 0) * 100) / 100;
   const rangeMilkEntries = data.milk.filter(m => m.date >= rangeFrom && m.date <= rangeTo);
   const rangeTotalMilk = Math.round(rangeMilkEntries.reduce((a, c) => a + (c.morning || 0) + (c.evening || 0), 0) * 100) / 100;
-  const rangeRevenue = calcRevenueWithHistory(rangeMilkEntries, rateHistory, data.rate?.value || 0, data.rate?.date || '');
-  const rangeExpenses = data.expenses.filter(e => e.date >= rangeFrom && e.date <= rangeTo).reduce((a, c) => a + c.amount, 0);
-  const profitLoss = rangeRevenue - rangeExpenses;
+  const dashboardBuyerRates = Object.fromEntries(data.buyers.map(b => [b._id, b.defaultRate || 0]));
+  const rangeRevenue = calcRevenueWithHistory(rangeMilkEntries, rateHistory, data.rate?.value || 0, data.rate?.date || '', dashboardBuyerRates);
+  
+  // Split operating vs purchasing expenses, and include sales
+  const rangeExpensesList = data.expenses.filter(e => e.date >= rangeFrom && e.date <= rangeTo);
+  const rangePurchases = rangeExpensesList.filter(e => e.type === 'purchasing').reduce((a, c) => a + c.amount, 0);
+  const rangeOperatingExpenses = rangeExpensesList.filter(e => e.type !== 'purchasing').reduce((a, c) => a + c.amount, 0);
+  const rangeTotalExp = rangePurchases + rangeOperatingExpenses;
+  const rangeSalesIncome = data.sales.filter(s => s.date >= rangeFrom && s.date <= rangeTo).reduce((a, s) => a + (s.salePrice || 0), 0);
+  const profitLoss = rangeRevenue + rangeSalesIncome - rangeTotalExp;
 
   // Top 3 producers in selected range
   const cowMilkMap: Record<string, number> = {};
@@ -162,7 +173,7 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
 
   // Today's expense/revenue data
   const todayExpenses = data.todayExpenses;
-  const todayMilkRev = Math.round(calcRevenueWithHistory(data.todayMilk, rateHistory, data.rate?.value || 0, data.rate?.date || ''));
+  const todayMilkRev = Math.round(calcRevenueWithHistory(data.todayMilk, rateHistory, data.rate?.value || 0, data.rate?.date || '', dashboardBuyerRates));
   const todayPurchases = todayExpenses.filter(e => e.type === 'purchasing').reduce((a, e) => a + e.amount, 0);
   const expByType: { name: string; value: number; color: string }[] = [];
   const todayExpByType: Record<string, number> = {};
@@ -608,12 +619,24 @@ export default function Dashboard({ isAdmin: _isAdmin, onNavigate }: DashboardPr
               <span className="text-xs text-emerald-700 dark:text-emerald-400">Milk Revenue</span>
               <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{fmtPKR(rangeRevenue)}</span>
             </div>
+            {rangeSalesIncome > 0 && (
+              <div className="flex justify-between items-center p-3 bg-purple-50 dark:bg-purple-900/10 rounded-lg">
+                <span className="text-xs text-purple-700 dark:text-purple-400">Animal Sales</span>
+                <span className="text-sm font-bold text-purple-700 dark:text-purple-400">{fmtPKR(rangeSalesIncome)}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/10 rounded-lg">
-              <span className="text-xs text-red-700 dark:text-red-400">Expenses</span>
-              <span className="text-sm font-bold text-red-700 dark:text-red-400">{fmtPKR(rangeExpenses)}</span>
+              <span className="text-xs text-red-700 dark:text-red-400">Operating Expenses</span>
+              <span className="text-sm font-bold text-red-700 dark:text-red-400">{fmtPKR(rangeOperatingExpenses)}</span>
             </div>
+            {rangePurchases > 0 && (
+              <div className="flex justify-between items-center p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg">
+                <span className="text-xs text-amber-700 dark:text-amber-400">Animal Purchases</span>
+                <span className="text-sm font-bold text-amber-700 dark:text-amber-400">{fmtPKR(rangePurchases)}</span>
+              </div>
+            )}
             <div className={`flex justify-between items-center p-3 rounded-lg ${profitLoss >= 0 ? 'bg-teal-50 dark:bg-teal-900/10' : 'bg-red-50 dark:bg-red-900/10'}`}>
-              <span className={`text-xs font-medium ${profitLoss >= 0 ? 'text-teal-700 dark:text-teal-400' : 'text-red-700 dark:text-red-400'}`}>Net</span>
+              <span className={`text-xs font-medium ${profitLoss >= 0 ? 'text-teal-700 dark:text-teal-400' : 'text-red-700 dark:text-red-400'}`}>Net Profit</span>
               <span className={`text-lg font-bold ${profitLoss >= 0 ? 'text-teal-700 dark:text-teal-400' : 'text-red-700 dark:text-red-400'}`}>{fmtPKR(profitLoss)}</span>
             </div>
             <button onClick={() => { setShowPnlPopup(false); onNavigate('reports'); }} className="w-full rounded-xl bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white px-4 py-2 text-sm font-semibold">Open Reports</button>

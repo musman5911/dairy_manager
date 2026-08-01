@@ -50,14 +50,16 @@ export function saleableMilkLiters(m: { morning?: number; evening?: number; calf
 }
 
 export function calcRevenueWithHistory(
-  milkEntries: { date: string; morning: number; evening: number; calfMilk?: number }[],
+  milkEntries: { date: string; morning: number; evening: number; calfMilk?: number; buyerId?: string }[],
   history: RateHistory[],
   currentRate: number,
   currentDate: string,
+  buyerRates?: Record<string, number>,
 ): number {
   let total = 0;
   for (const m of milkEntries) {
-    const rate = getRateForDate(m.date, history, currentRate, currentDate);
+    const buyerRate = m.buyerId && buyerRates ? buyerRates[m.buyerId] : undefined;
+    const rate = (buyerRate && buyerRate > 0) ? buyerRate : getRateForDate(m.date, history, currentRate, currentDate);
     total += saleableMilkLiters(m) * rate;
   }
   return Math.round(total * 100) / 100;

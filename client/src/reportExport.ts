@@ -24,6 +24,7 @@ interface ReportCtx {
   rate: number;
   rateHistory?: RateHistory[];
   rateDate?: string;
+  buyerRates?: Record<string, number>;
   costPerAnimal: (Cow & { milkL: number; revenue: number; expenses: number; saleIncome: number; net: number })[];
 }
 
@@ -99,7 +100,7 @@ export function generateMilkReport(data: ReportCtx) {
 
   const totalL = milk.reduce((a, m) => a + (m.morning || 0) + (m.evening || 0), 0);
   const calfL = milk.reduce((a, m) => a + (m.calfMilk || 0), 0);
-  const revenue = calcRevenueWithHistory(milk, data.rateHistory || [], rate, data.rateDate || '');
+  const revenue = calcRevenueWithHistory(milk, data.rateHistory || [], rate, data.rateDate || '', data.buyerRates);
   const days = new Set(milk.map(m => m.date)).size;
 
   // Summary
@@ -281,7 +282,7 @@ export function generateSummaryReport(data: ReportCtx & {
   const salesList = filterByRange(data.sales, rDays);
 
   const filteredMilkL = milk.reduce((a, m) => a + (m.morning || 0) + (m.evening || 0), 0);
-  const filteredRevenue = calcRevenueWithHistory(milk, data.rateHistory || [], data.rate, data.rateDate || '');
+  const filteredRevenue = calcRevenueWithHistory(milk, data.rateHistory || [], data.rate, data.rateDate || '', data.buyerRates);
   const filteredTotalExp = exp.reduce((a, e) => a + (e.amount || 0), 0);
   const filteredSaleIncome = salesList.reduce((a, s) => a + (s.salePrice || 0), 0);
   const filteredOpProfit = filteredRevenue - filteredTotalExp;
@@ -368,7 +369,7 @@ export function generateSummaryReport(data: ReportCtx & {
   const cowRows = Array.from(allCowIds).map(cowId => {
     const cow = data.cows.find(c => c._id === cowId);
     const mL = cowMilkByRange[cowId] || 0;
-    const revenue = calcRevenueWithHistory(milk.filter(m => m.cowId === cowId), data.rateHistory || [], data.rate, data.rateDate || '');
+    const revenue = calcRevenueWithHistory(milk.filter(m => m.cowId === cowId), data.rateHistory || [], data.rate, data.rateDate || '', data.buyerRates);
     const expAmt = cowExpByRange[cowId] || 0;
     const purchase = cowPurchaseByRange[cowId] || 0;
     const sale = cowSalesByRange[cowId] || 0;
